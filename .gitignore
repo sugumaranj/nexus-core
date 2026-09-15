@@ -1,0 +1,67 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment
+/.env
+/.env.*
+!/.env.example
+
+# IDE / OS
+/.idea/
+/.vscode/
+Thumbs.db
+.DS_Store
+desktop.ini
+/.agents
+
+# Storage & Caches
+/storage/logs/*
+!/storage/logs/.gitkeep
+/storage/backups/*
+!/storage/backups/.gitkeep
+/storage/certificates/*
+!/storage/certificates/.gitkeep
+/storage/reports/*
+!/storage/reports/.gitkeep
+/storage/pdf_cache/*
+!/storage/pdf_cache/.gitkeep
+/storage/qr_codes/*
+!/storage/qr_codes/.gitkeep
+
+# Database
+/database/
+
+# Uploads
+/public/uploads/banners/*
+!/public/uploads/banners/.gitkeep
+/public/uploads/brochures/*
+!/public/uploads/brochures/.gitkeep
+/public/uploads/logos/*
+!/public/uploads/logos/.gitkeep
+/public/uploads/profile_photos/*
+!/public/uploads/profile_photos/.gitkeep
+/public/uploads/signatures/*
+!/public/uploads/signatures/.gitkeep
+/public/uploads/student_photos/*
+!/public/uploads/student_photos/.gitkeep
+/public/uploads/submissions/*
+!/public/uploads/submissions/.gitkeep
+/public/uploads/symposiums/*
+!/public/uploads/symposiums/.gitkeep
+
+# Local Scratch / Temporary Files
+/scratch/
+scratch*.php
+scratch*.sql
+scratch*.pdf
+check.php
+check_db.php
+test.php
+alter.php
+fix_template_dims.php
+test_vector.pdf
+# Certificate Templates
+/storage/certificate_templates/*
+!/storage/certificate_templates/.gitkeep
+

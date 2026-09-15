@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # 1. The Web Server Container (PHP + Apache)
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexuscore_web
+    ports:
+      - "8080:80" # Maps port 8080 on your PC to port 80 in the container
+    volumes:
+      # This maps your local project folder into the container. 
+      # Any code changes you make locally will instantly show up without needing to rebuild!
+      - .:/var/www/html
+    depends_on:
+      - db
+    environment:
+      # These environment variables will be available to your PHP app
+      - DB_HOST=db
+      - DB_DATABASE=nexuscore_db
+      - DB_USERNAME=nexus_user
+      - DB_PASSWORD=nexus_pass
+
+  # 2. The Database Container (MySQL)
+  db:
+    image: mysql:8.0
+    container_name: nexuscore_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: nexuscore_db
+      MYSQL_USER: nexus_user
+      MYSQL_PASSWORD: nexus_pass
+      MYSQL_ROOT_PASSWORD: super_secret_root_password
+    ports:
+      - "3306:3306"
+    volumes:
+      # This ensures your database data isn't deleted when the container stops
+      - db_data:/var/lib/mysql
+
+# Define the named volume for database persistence
+volumes:
+  db_data:

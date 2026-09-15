@@ -1,0 +1,226 @@
+/**
+ * ==========================================================================
+ * NexusCore
+ * ==========================================================================
+ * File        : home.css
+ * Location    : public/assets/css/
+ * Description : Styles for the Landing Page
+ *
+ * Project     : NexusCore
+ * ==========================================================================
+ */
+
+/* ==========================================================
+   GLOBAL
+========================================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+/* ==========================================================
+   NAVIGATION BAR
+========================================================== */
+
+.navbar {
+  transition: all 0.3s ease;
+
+  background: #ffffff !important;
+}
+
+.navbar-brand h4 {
+  margin-bottom: 0;
+}
+
+.nav-link {
+  font-weight: 500;
+
+  transition: 0.3s;
+}
+
+.nav-link:hover {
+  color: var(--primary-color);
+}
+
+.navbar .btn {
+  border-radius: 10px;
+}
+
+/* ==========================================================
+   HERO SECTION
+========================================================== */
+
+.hero-section {
+  min-height: 90vh;
+
+  display: flex;
+
+  align-items: center;
+
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #ffffff 100%);
+
+  position: relative;
+
+  overflow: hidden;
+}
+
+/* Decorative circles */
+
+.hero-section::before {
+  content: "";
+
+  position: absolute;
+
+  width: 350px;
+
+  height: 350px;
+
+  border-radius: 50%;
+
+  background: rgba(37, 99, 235, 0.08);
+
+  top: -120px;
+
+  right: -120px;
+}
+
+.hero-section::after {
+  content: "";
+
+  position: absolute;
+
+  width: 220px;
+
+  height: 220px;
+
+  border-radius: 50%;
+
+  background: rgba(37, 99, 235, 0.05);
+
+  bottom: -80px;
+
+  left: -80px;
+}
+
+/* ==========================================================
+   HERO IMAGE
+========================================================== */
+
+.hero-section img {
+  transition: 0.4s ease;
+}
+
+.hero-section img:hover {
+  transform: scale(1.05);
+}
+
+/* ==========================================================
+   BUTTONS
+========================================================== */
+
+.btn-primary {
+  padding: 12px 28px;
+
+  border-radius: 10px;
+
+  transition: 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+}
+
+.btn-outline-primary {
+  padding: 12px 28px;
+
+  border-radius: 10px;
+}
+
+/* ==========================================================
+   FEATURE SECTION
+========================================================== */
+
+#features {
+  background: #ffffff;
+}
+
+.feature-card {
+  border-radius: 16px;
+
+  transition: 0.35s ease;
+
+  cursor: pointer;
+}
+
+.feature-card:hover {
+  transform: translateY(-10px);
+
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+}
+
+.feature-card i {
+  transition: 0.3s;
+}
+
+.feature-card:hover i {
+  transform: scale(1.15);
+}
+
+/* ==========================================================
+   ABOUT SECTION
+========================================================== */
+
+#about {
+  background: #f8fafc;
+}
+
+/* ==========================================================
+   FOOTER
+========================================================== */
+
+footer {
+  background: #0f172a !important;
+}
+
+footer p,
+footer small {
+  color: #cbd5e1;
+}
+
+/* ==========================================================
+   RESPONSIVE
+========================================================== */
+
+@media (max-width: 991px) {
+  .hero-section {
+    text-align: center;
+
+    min-height: auto;
+
+    padding-top: 60px;
+
+    padding-bottom: 60px;
+  }
+
+  .hero-section img {
+    margin-top: 40px;
+
+    max-width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .display-4 {
+    font-size: 2.3rem;
+  }
+
+  .btn {
+    width: 100%;
+
+    margin-bottom: 12px;
+  }
+}

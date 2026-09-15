@@ -1,0 +1,701 @@
+/* ==========================================================================
+   NexusCore — Competition Module Styles
+   ==========================================================================
+   File        : competition.css
+   Location    : public/assets/css/
+   Description : Styles specific to the Competition Management module.
+
+   Covers
+   --------------------------------------------------------------------------
+   • Wizard step indicator
+   • Status & category badges
+   • Rule section builder
+   • Coordinator list
+   • Dashboard stat cards
+   • Timeline component
+   • Conflict warning panel
+   • Print / PDF styles
+
+   ========================================================================== */
+
+/* ==========================================================================
+   1. WIZARD STEP INDICATOR
+   ========================================================================== */
+
+.comp-wizard-steps {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0;
+  margin-bottom: 2rem;
+  counter-reset: step;
+}
+
+.comp-wizard-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+  text-align: center;
+}
+
+/* Connector line between steps */
+.comp-wizard-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: calc(50% + 20px);
+  width: calc(100% - 40px);
+  height: 2px;
+  background: #e2e8f0;
+  z-index: 0;
+  transition: background 0.3s ease;
+}
+
+.comp-wizard-step.completed:not(:last-child)::after {
+  background: #2563eb;
+}
+
+.comp-wizard-step-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  border: 2px solid #e2e8f0;
+}
+
+.comp-wizard-step.active .comp-wizard-step-circle {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.comp-wizard-step.completed .comp-wizard-step-circle {
+  background: #16a34a;
+  color: #fff;
+  border-color: #16a34a;
+}
+
+.comp-wizard-step-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin-top: 6px;
+  color: #6b7280;
+  max-width: 80px;
+  line-height: 1.3;
+}
+
+.comp-wizard-step.active .comp-wizard-step-label {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.comp-wizard-step.completed .comp-wizard-step-label {
+  color: #16a34a;
+}
+
+/* Wizard Panel */
+.comp-wizard-panel {
+  display: none;
+  animation: fadeInUp 0.25s ease;
+}
+
+.comp-wizard-panel.active {
+  display: block;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ==========================================================================
+   2. DASHBOARD STAT CARDS
+   ========================================================================== */
+
+.comp-stat-card {
+  border: none;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: default;
+}
+
+.comp-stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.comp-stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.comp-stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.comp-stat-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ==========================================================================
+   3. STATUS & CATEGORY BADGES
+   ========================================================================== */
+
+.badge-status-draft               { background: #6b7280; }
+.badge-status-scheduled           { background: #0891b2; }
+.badge-status-registration-open   { background: #16a34a; }
+.badge-status-registration-closed { background: #d97706; }
+.badge-status-running             { background: #2563eb; }
+.badge-status-completed           { background: #374151; }
+.badge-status-cancelled           { background: #dc2626; }
+
+.badge-cat-technical    { background: #2563eb; }
+.badge-cat-non-technical{ background: #7c3aed; }
+
+.badge-mode-offline { background: #374151; }
+.badge-mode-online  { background: #0891b2; }
+.badge-mode-hybrid  { background: #7c3aed; }
+
+/* ==========================================================================
+   4. COMPETITION LIST TABLE
+   ========================================================================== */
+
+.comp-table-title {
+  font-weight: 600;
+  color: #0f172a;
+  text-decoration: none;
+}
+
+.comp-table-title:hover {
+  color: #2563eb;
+}
+
+.comp-table-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  color: #2563eb;
+  font-size: 0.8rem;
+  background: rgba(37, 99, 235, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.comp-actions-dropdown .dropdown-item {
+  font-size: 0.85rem;
+}
+
+/* ==========================================================================
+   5. RULE SECTION BUILDER
+   ========================================================================== */
+
+.comp-rule-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 1rem;
+  position: relative;
+  transition: border-color 0.2s ease;
+}
+
+.comp-rule-item:hover {
+  border-color: #2563eb;
+}
+
+.comp-rule-item .comp-rule-drag-handle {
+  cursor: grab;
+  color: #94a3b8;
+  font-size: 1.1rem;
+  padding: 4px;
+}
+
+.comp-rule-item .comp-rule-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 0.85rem;
+}
+
+.comp-rule-item .comp-rule-remove:hover {
+  background: #dc2626;
+  color: #fff;
+}
+
+.comp-rule-add-btn {
+  border: 2px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #64748b;
+  background: transparent;
+  width: 100%;
+  padding: 12px;
+  text-align: center;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.comp-rule-add-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.04);
+}
+
+/* ==========================================================================
+   6. COORDINATOR SELECTOR
+   ========================================================================== */
+
+.comp-coordinator-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.comp-coordinator-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.comp-coordinator-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+.comp-coordinator-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.comp-coordinator-role {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.comp-coordinator-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.comp-coordinator-remove:hover {
+  background: #fee2e2;
+}
+
+/* User search dropdown */
+.comp-user-search {
+  position: relative;
+}
+
+.comp-user-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  max-height: 250px;
+  overflow-y: auto;
+  display: none;
+}
+
+.comp-user-dropdown.show {
+  display: block;
+}
+
+.comp-user-option {
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: background 0.15s;
+  font-size: 0.87rem;
+}
+
+.comp-user-option:hover {
+  background: #f0f9ff;
+}
+
+.comp-user-option:last-child {
+  border-bottom: none;
+}
+
+.comp-user-option .user-name  { font-weight: 600; }
+.comp-user-option .user-email { color: #64748b; font-size: 0.78rem; }
+
+/* ==========================================================================
+   7. CONFLICT WARNING PANEL
+   ========================================================================== */
+
+.comp-conflict-alert {
+  background: #fffbeb;
+  border: 1px solid #f59e0b;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.87rem;
+}
+
+.comp-conflict-alert .comp-conflict-title {
+  font-weight: 700;
+  color: #b45309;
+  margin-bottom: 6px;
+}
+
+.comp-conflict-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.comp-conflict-list li::before {
+  content: '⚠ ';
+}
+
+/* ==========================================================================
+   8. VIEW PAGE — TABS & TIMELINE
+   ========================================================================== */
+
+.comp-view-header {
+  background: linear-gradient(135deg, #1e293b 0%, #1d4ed8 100%);
+  border-radius: 16px;
+  padding: 30px;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.comp-view-header .comp-view-code {
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.comp-view-header .comp-view-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin: 8px 0;
+}
+
+.comp-view-meta span {
+  margin-right: 16px;
+  font-size: 0.87rem;
+  opacity: 0.85;
+}
+
+/* Timeline */
+.comp-timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.comp-timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e2e8f0;
+}
+
+.comp-timeline-item {
+  position: relative;
+  padding: 0 0 18px 24px;
+}
+
+.comp-timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 2px #2563eb;
+}
+
+.comp-timeline-item .timeline-time {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.comp-timeline-item .timeline-action {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.comp-timeline-item .timeline-user {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+/* ==========================================================================
+   9. RULE SECTION DISPLAY (View Page)
+   ========================================================================== */
+
+.comp-rule-section {
+  border-left: 3px solid #2563eb;
+  padding-left: 14px;
+  margin-bottom: 1.25rem;
+}
+
+.comp-rule-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #2563eb;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comp-rule-section-content {
+  font-size: 0.9rem;
+  color: #374151;
+  white-space: pre-wrap;
+  line-height: 1.7;
+}
+
+/* ==========================================================================
+   10. UPCOMING TIMELINE (Dashboard)
+   ========================================================================== */
+
+.comp-upcoming-item {
+  display: flex;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.comp-upcoming-item:last-child {
+  border-bottom: none;
+}
+
+.comp-upcoming-date {
+  min-width: 48px;
+  text-align: center;
+  background: #eff6ff;
+  border-radius: 8px;
+  padding: 6px 4px;
+}
+
+.comp-upcoming-date .day {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #2563eb;
+  line-height: 1;
+}
+
+.comp-upcoming-date .month {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   11. PRINT / PDF STYLES
+   ========================================================================== */
+
+@media print {
+  .comp-pdf-no-print {
+    display: none !important;
+  }
+
+  .comp-pdf-body {
+    font-family: 'Times New Roman', serif;
+    font-size: 11pt;
+    color: #000;
+  }
+
+  .comp-pdf-header {
+    text-align: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+
+  .comp-pdf-section-title {
+    font-weight: bold;
+    font-size: 10pt;
+    text-transform: uppercase;
+    border-bottom: 1px solid #ccc;
+    margin: 14px 0 6px;
+    padding-bottom: 3px;
+  }
+
+  .comp-pdf-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 10pt;
+    border: none;
+  }
+
+  .comp-pdf-table th,
+  .comp-pdf-table td {
+    border: none;
+  }
+  
+  .comp-pdf-table th {
+    border-top: 1px solid #ccc;
+    border-bottom: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+  
+  .comp-pdf-table td {
+    border-top: 1px solid #ccc;
+    border-right: 1px solid #ccc;
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .comp-pdf-table tbody tr:first-child td {
+      border-top: none;
+  }
+
+  .comp-pdf-table th:first-child,
+  .comp-pdf-table td:first-child {
+    border-left: 1px solid #ccc;
+  }
+
+  .comp-pdf-table tr, .comp-pdf-table td {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+  
+  .comp-pdf-table tfoot {
+    display: table-footer-group;
+  }
+  .comp-pdf-table tfoot td {
+    border-top: 1px solid #ccc !important;
+    border-bottom: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+  }
+
+  .comp-pdf-table th {
+    background: #f0f0f0;
+    font-weight: bold;
+  }
+
+  .comp-pdf-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    font-size: 9pt;
+    color: #555;
+    text-align: center;
+    border-top: 1px solid #ccc;
+    padding: 6px;
+  }
+
+  @page {
+    margin: 18mm 15mm;
+    size: A4;
+  }
+}
+
+/* ==========================================================================
+   12. RESPONSIVE ADJUSTMENTS
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  .comp-wizard-steps {
+    gap: 0;
+  }
+
+  .comp-wizard-step-label {
+    display: none;
+  }
+
+  .comp-wizard-step:not(:last-child)::after {
+    left: calc(50% + 16px);
+    width: calc(100% - 32px);
+  }
+
+  .comp-stat-value {
+    font-size: 1.5rem;
+  }
+
+  .comp-view-header .comp-view-title {
+    font-size: 1.3rem;
+  }
+}

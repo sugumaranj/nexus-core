@@ -1,0 +1,15 @@
+<IfModule mod_rewrite.c>
+
+    RewriteEngine On
+    RewriteBase /NexusCore/
+
+    # Redirect root to the public directory
+    RewriteRule ^$ public/index.php [L]
+
+    # If the request is NOT targeting something inside public/
+    RewriteCond %{REQUEST_URI} !^/NexusCore/public/
+
+    # Rewrite all other requests through public/index.php
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+
+</IfModule>

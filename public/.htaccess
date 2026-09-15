@@ -1,0 +1,50 @@
+<IfModule mod_rewrite.c>
+
+    RewriteEngine On
+
+    RewriteBase /NexusCore/public/
+
+    # If the request is NOT an existing file
+    RewriteCond %{REQUEST_FILENAME} !-f
+
+    # If the request is NOT an existing directory
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # Redirect everything to index.php
+    RewriteRule ^ index.php [QSA,L]
+
+</IfModule>
+
+<IfModule mod_headers.c>
+
+    # Allow Service Worker to control the full /NexusCore/ scope
+    <Files "service-worker.js">
+        Header set Service-Worker-Allowed "/NexusCore/"
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+    </Files>
+
+    # Ensure manifest.json is served with correct MIME and no caching
+    <Files "manifest.json">
+        Header set Content-Type "application/manifest+json"
+        Header set Cache-Control "no-cache"
+    </Files>
+
+    # Ensure ping.json is never cached
+    <Files "ping.json">
+        Header set Cache-Control "no-cache, no-store, must-revalidate"
+        Header set Pragma "no-cache"
+        Header set Expires "0"
+        Header set Access-Control-Allow-Origin "*"
+    </Files>
+
+</IfModule>
+
+# Correct MIME types for web fonts
+<IfModule mod_mime.c>
+    AddType application/manifest+json  .webmanifest
+    AddType font/woff2                 .woff2
+    AddType font/woff                  .woff
+    AddType application/javascript     .js .mjs
+</IfModule>

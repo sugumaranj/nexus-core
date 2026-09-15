@@ -1,0 +1,2208 @@
+{
+    "applications": {
+        "columns": [
+            {
+                "Field": "application_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "application_no",
+                "Type": "varchar(30)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "competition_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "student_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "application_type",
+                "Type": "enum('Individual','Team')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "application_status",
+                "Type": "enum('Pending','Approved','Rejected','Cancelled')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Pending",
+                "Extra": ""
+            },
+            {
+                "Field": "approval_status",
+                "Type": "enum('Pending','Approved','Rejected')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Pending",
+                "Extra": ""
+            },
+            {
+                "Field": "approved_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "approved_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "remarks",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "applied_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `applications` (\n  `application_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `application_no` varchar(30) NOT NULL,\n  `competition_id` bigint(20) NOT NULL,\n  `student_id` bigint(20) NOT NULL,\n  `application_type` enum('Individual','Team') NOT NULL,\n  `application_status` enum('Pending','Approved','Rejected','Cancelled') NOT NULL DEFAULT 'Pending',\n  `approval_status` enum('Pending','Approved','Rejected') NOT NULL DEFAULT 'Pending',\n  `approved_by` bigint(20) DEFAULT NULL,\n  `approved_at` datetime DEFAULT NULL,\n  `remarks` varchar(255) DEFAULT NULL,\n  `applied_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`application_id`),\n  UNIQUE KEY `uq_application_no` (`application_no`),\n  UNIQUE KEY `uq_student_competition` (`student_id`,`competition_id`),\n  KEY `idx_application_student` (`student_id`),\n  KEY `idx_application_competition` (`competition_id`),\n  KEY `idx_application_status` (`application_status`),\n  KEY `fk_application_approved_by` (`approved_by`),\n  CONSTRAINT `fk_application_approved_by` FOREIGN KEY (`approved_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_application_competition` FOREIGN KEY (`competition_id`) REFERENCES `competitions` (`competition_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_application_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "audit_logs": {
+        "columns": [
+            {
+                "Field": "audit_log_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "action",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "module_name",
+                "Type": "varchar(100)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "table_name",
+                "Type": "varchar(100)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "record_id",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "ip_address",
+                "Type": "varchar(45)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "user_agent",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "action_time",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `audit_logs` (\n  `audit_log_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `user_id` bigint(20) NOT NULL,\n  `action` varchar(100) NOT NULL,\n  `module_name` varchar(100) DEFAULT NULL,\n  `table_name` varchar(100) DEFAULT NULL,\n  `record_id` bigint(20) DEFAULT NULL,\n  `ip_address` varchar(45) DEFAULT NULL,\n  `user_agent` text DEFAULT NULL,\n  `action_time` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`audit_log_id`),\n  KEY `idx_audit_user` (`user_id`),\n  KEY `idx_audit_time` (`action_time`),\n  CONSTRAINT `fk_audit_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "certificates": {
+        "columns": [
+            {
+                "Field": "certificate_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "application_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "certificate_number",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "certificate_type",
+                "Type": "enum('Participation','Winner','Runner')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "verification_hash",
+                "Type": "char(64)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "qr_code_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "verification_url",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "generated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `certificates` (\n  `certificate_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `application_id` bigint(20) NOT NULL,\n  `certificate_number` varchar(50) NOT NULL,\n  `certificate_type` enum('Participation','Winner','Runner') NOT NULL,\n  `verification_hash` char(64) NOT NULL,\n  `qr_code_path` varchar(255) DEFAULT NULL,\n  `verification_url` varchar(255) DEFAULT NULL,\n  `generated_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`certificate_id`),\n  UNIQUE KEY `uq_certificate_number` (`certificate_number`),\n  UNIQUE KEY `uq_certificate_hash` (`verification_hash`),\n  UNIQUE KEY `uq_certificate_application` (`application_id`),\n  KEY `idx_certificate_application` (`application_id`),\n  KEY `idx_certificate_number` (`certificate_number`),\n  CONSTRAINT `fk_certificate_application` FOREIGN KEY (`application_id`) REFERENCES `applications` (`application_id`) ON DELETE CASCADE ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_coordinators": {
+        "columns": [
+            {
+                "Field": "coordinator_assignment_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "competition_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "coordinator_type",
+                "Type": "enum('Staff Coordinator','Event Coordinator','Student Coordinator','Judge')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Staff Coordinator",
+                "Extra": ""
+            },
+            {
+                "Field": "user_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "responsibility",
+                "Type": "enum('Coordinator','Incharge')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "assigned_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "notes",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_coordinators` (\n  `coordinator_assignment_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `competition_id` bigint(20) NOT NULL,\n  `coordinator_type` enum('Staff Coordinator','Event Coordinator','Student Coordinator','Judge') NOT NULL DEFAULT 'Staff Coordinator',\n  `user_id` bigint(20) NOT NULL,\n  `responsibility` enum('Coordinator','Incharge') NOT NULL,\n  `assigned_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `notes` varchar(255) DEFAULT NULL,\n  PRIMARY KEY (`coordinator_assignment_id`),\n  UNIQUE KEY `uq_competition_user` (`competition_id`,`user_id`),\n  UNIQUE KEY `uq_competition_responsibility` (`competition_id`,`responsibility`),\n  KEY `fk_cc_user` (`user_id`),\n  KEY `idx_cc_type` (`coordinator_type`),\n  CONSTRAINT `fk_cc_competition` FOREIGN KEY (`competition_id`) REFERENCES `competitions` (`competition_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_cc_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_results": {
+        "columns": [
+            {
+                "Field": "result_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "application_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "total_score",
+                "Type": "decimal(6,2)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "rank_position",
+                "Type": "int(11)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "result_status",
+                "Type": "enum('Qualified','Winner','Runner','Participant','Disqualified')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Participant",
+                "Extra": ""
+            },
+            {
+                "Field": "evaluated_by",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "evaluation_time",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "remarks",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "published",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "published_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_results` (\n  `result_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `application_id` bigint(20) NOT NULL,\n  `total_score` decimal(6,2) NOT NULL,\n  `rank_position` int(11) DEFAULT NULL,\n  `result_status` enum('Qualified','Winner','Runner','Participant','Disqualified') NOT NULL DEFAULT 'Participant',\n  `evaluated_by` bigint(20) NOT NULL,\n  `evaluation_time` datetime NOT NULL,\n  `remarks` text DEFAULT NULL,\n  `published` tinyint(1) NOT NULL DEFAULT 0,\n  `published_at` datetime DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`result_id`),\n  UNIQUE KEY `uq_result_application` (`application_id`),\n  KEY `idx_result_application` (`application_id`),\n  KEY `idx_result_rank` (`rank_position`),\n  KEY `fk_result_evaluator` (`evaluated_by`),\n  CONSTRAINT `fk_result_application` FOREIGN KEY (`application_id`) REFERENCES `applications` (`application_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_result_evaluator` FOREIGN KEY (`evaluated_by`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_rules": {
+        "columns": [
+            {
+                "Field": "rule_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "competition_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "section",
+                "Type": "enum('Eligibility','Topics','Judging Criteria','Allowed Software','Required Materials','Prohibited Items','Submission Format','Time Limit','Additional Instructions','General Rules','Tie Break Rules','Online Guidelines')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "content",
+                "Type": "text",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "display_order",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_rules` (\n  `rule_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `competition_id` bigint(20) NOT NULL,\n  `section` enum('Eligibility','Topics','Judging Criteria','Allowed Software','Required Materials','Prohibited Items','Submission Format','Time Limit','Additional Instructions','General Rules','Tie Break Rules','Online Guidelines') NOT NULL,\n  `content` text NOT NULL,\n  `display_order` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`rule_id`),\n  KEY `idx_crule_competition` (`competition_id`),\n  KEY `idx_crule_section` (`section`,`display_order`),\n  CONSTRAINT `fk_rule_competition` FOREIGN KEY (`competition_id`) REFERENCES `competitions` (`competition_id`) ON DELETE CASCADE ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_stages": {
+        "columns": [
+            {
+                "Field": "stage_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "competition_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "stage_name",
+                "Type": "enum('Digital Prelims','Offline Prelims','Quarter Finals','Semi Finals','Finals','Custom')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "custom_name",
+                "Type": "varchar(100)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "stage_order",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "stage_date",
+                "Type": "date",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "start_time",
+                "Type": "time",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "end_time",
+                "Type": "time",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "venue_id",
+                "Type": "int(11)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "description",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_active",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_stages` (\n  `stage_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `competition_id` bigint(20) NOT NULL,\n  `stage_name` enum('Digital Prelims','Offline Prelims','Quarter Finals','Semi Finals','Finals','Custom') NOT NULL,\n  `custom_name` varchar(100) DEFAULT NULL,\n  `stage_order` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `stage_date` date DEFAULT NULL,\n  `start_time` time DEFAULT NULL,\n  `end_time` time DEFAULT NULL,\n  `venue_id` int(11) DEFAULT NULL,\n  `description` text DEFAULT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT 1,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`stage_id`),\n  KEY `fk_stage_venue` (`venue_id`),\n  KEY `idx_cstage_competition` (`competition_id`,`stage_order`),\n  CONSTRAINT `fk_stage_competition` FOREIGN KEY (`competition_id`) REFERENCES `competitions` (`competition_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_stage_venue` FOREIGN KEY (`venue_id`) REFERENCES `venues` (`venue_id`) ON DELETE SET NULL ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_submissions": {
+        "columns": [
+            {
+                "Field": "submission_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "application_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "original_file_name",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "stored_file_name",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "file_type",
+                "Type": "varchar(50)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "file_size",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "uploaded_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_submissions` (\n  `submission_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `application_id` bigint(20) NOT NULL,\n  `original_file_name` varchar(255) NOT NULL,\n  `stored_file_name` varchar(255) NOT NULL,\n  `file_type` varchar(50) DEFAULT NULL,\n  `file_size` bigint(20) DEFAULT NULL,\n  `uploaded_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`submission_id`),\n  KEY `idx_submission_application` (`application_id`),\n  CONSTRAINT `fk_submission_application` FOREIGN KEY (`application_id`) REFERENCES `applications` (`application_id`) ON DELETE CASCADE ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competition_types": {
+        "columns": [
+            {
+                "Field": "competition_type_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "type_code",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "type_name",
+                "Type": "varchar(120)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "category",
+                "Type": "enum('Technical','Non-Technical')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_team_event",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_upload",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_prelims",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_batch",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "default_team_size",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "is_active",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `competition_types` (\n  `competition_type_id` int(11) NOT NULL AUTO_INCREMENT,\n  `type_code` varchar(20) NOT NULL,\n  `type_name` varchar(120) NOT NULL,\n  `category` enum('Technical','Non-Technical') NOT NULL,\n  `is_team_event` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_upload` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_prelims` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_batch` tinyint(1) NOT NULL DEFAULT 0,\n  `default_team_size` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `is_active` tinyint(1) NOT NULL DEFAULT 1,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`competition_type_id`),\n  UNIQUE KEY `uq_type_code` (`type_code`),\n  CONSTRAINT `chk_team_size` CHECK (`default_team_size` between 1 and 10)\n) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "competitions": {
+        "columns": [
+            {
+                "Field": "competition_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "symposium_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "competition_type_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "venue_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "competition_code",
+                "Type": "varchar(30)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "enum('Draft','Scheduled','Registration Open','Registration Closed','Running','Completed','Cancelled')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Draft",
+                "Extra": ""
+            },
+            {
+                "Field": "competition_mode",
+                "Type": "enum('Offline','Online','Hybrid')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Offline",
+                "Extra": ""
+            },
+            {
+                "Field": "category",
+                "Type": "enum('Technical','Non-Technical')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Technical",
+                "Extra": ""
+            },
+            {
+                "Field": "session",
+                "Type": "enum('FN','AN','Full Day')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "FN",
+                "Extra": ""
+            },
+            {
+                "Field": "participation_type",
+                "Type": "enum('Individual','Team','Both')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Individual",
+                "Extra": ""
+            },
+            {
+                "Field": "title",
+                "Type": "varchar(150)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "description",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "max_participants",
+                "Type": "smallint(5) unsigned",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "registration_limit",
+                "Type": "smallint(5) unsigned",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "eligibility_note",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "has_prelims",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "has_digital_prelims",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "prelim_type",
+                "Type": "enum('MCQ','File Submission','Coding Test','Abstract Screening','Portfolio Review','Custom')",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "supports_upload",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_evaluation",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_attendance",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_qr",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_certificates",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_tie_break",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "supports_waiting_list",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "judging_method",
+                "Type": "enum('Marks','Rubrics','Voting','Mixed')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Marks",
+                "Extra": ""
+            },
+            {
+                "Field": "online_platform",
+                "Type": "enum('Google Meet','Microsoft Teams','Zoom','Other')",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "meeting_link",
+                "Type": "varchar(512)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "submission_url",
+                "Type": "varchar(512)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "max_team_size",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "min_team_size",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "event_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "reporting_time",
+                "Type": "time",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "start_time",
+                "Type": "time",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "duration_minutes",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "60",
+                "Extra": ""
+            },
+            {
+                "Field": "end_time",
+                "Type": "time",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "registration_deadline",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "submission_deadline",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "maximum_score",
+                "Type": "decimal(5,2)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "100.00",
+                "Extra": ""
+            },
+            {
+                "Field": "display_order",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "is_locked",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "is_deleted",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "is_archived",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "archived_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "archived_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "published_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "published_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "pdf_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "deleted_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "deleted_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "rules",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_active",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_by",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            },
+            {
+                "Field": "last_modified_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `competitions` (\n  `competition_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `symposium_id` bigint(20) NOT NULL,\n  `competition_type_id` int(11) NOT NULL,\n  `venue_id` int(11) NOT NULL,\n  `competition_code` varchar(30) NOT NULL,\n  `status` enum('Draft','Scheduled','Registration Open','Registration Closed','Running','Completed','Cancelled') NOT NULL DEFAULT 'Draft',\n  `competition_mode` enum('Offline','Online','Hybrid') NOT NULL DEFAULT 'Offline',\n  `category` enum('Technical','Non-Technical') NOT NULL DEFAULT 'Technical',\n  `session` enum('FN','AN','Full Day') NOT NULL DEFAULT 'FN',\n  `participation_type` enum('Individual','Team','Both') NOT NULL DEFAULT 'Individual',\n  `title` varchar(150) NOT NULL,\n  `description` text DEFAULT NULL,\n  `max_participants` smallint(5) unsigned DEFAULT NULL,\n  `registration_limit` smallint(5) unsigned DEFAULT NULL,\n  `eligibility_note` text DEFAULT NULL,\n  `has_prelims` tinyint(1) NOT NULL DEFAULT 0,\n  `has_digital_prelims` tinyint(1) NOT NULL DEFAULT 0,\n  `prelim_type` enum('MCQ','File Submission','Coding Test','Abstract Screening','Portfolio Review','Custom') DEFAULT NULL,\n  `supports_upload` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_evaluation` tinyint(1) NOT NULL DEFAULT 1,\n  `supports_attendance` tinyint(1) NOT NULL DEFAULT 1,\n  `supports_qr` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_certificates` tinyint(1) NOT NULL DEFAULT 1,\n  `supports_tie_break` tinyint(1) NOT NULL DEFAULT 0,\n  `supports_waiting_list` tinyint(1) NOT NULL DEFAULT 0,\n  `judging_method` enum('Marks','Rubrics','Voting','Mixed') NOT NULL DEFAULT 'Marks',\n  `online_platform` enum('Google Meet','Microsoft Teams','Zoom','Other') DEFAULT NULL,\n  `meeting_link` varchar(512) DEFAULT NULL,\n  `submission_url` varchar(512) DEFAULT NULL,\n  `max_team_size` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `min_team_size` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `event_date` date NOT NULL,\n  `reporting_time` time NOT NULL,\n  `start_time` time NOT NULL,\n  `duration_minutes` int(11) NOT NULL DEFAULT 60,\n  `end_time` time NOT NULL,\n  `registration_deadline` datetime NOT NULL,\n  `submission_deadline` datetime DEFAULT NULL,\n  `maximum_score` decimal(5,2) NOT NULL DEFAULT 100.00,\n  `display_order` int(11) NOT NULL DEFAULT 1,\n  `is_locked` tinyint(1) NOT NULL DEFAULT 0,\n  `is_deleted` tinyint(1) NOT NULL DEFAULT 0,\n  `is_archived` tinyint(1) NOT NULL DEFAULT 0,\n  `archived_at` datetime DEFAULT NULL,\n  `archived_by` bigint(20) DEFAULT NULL,\n  `published_at` datetime DEFAULT NULL,\n  `published_by` bigint(20) DEFAULT NULL,\n  `pdf_path` varchar(255) DEFAULT NULL,\n  `deleted_at` datetime DEFAULT NULL,\n  `deleted_by` bigint(20) DEFAULT NULL,\n  `rules` text DEFAULT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT 1,\n  `created_by` bigint(20) NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  `last_modified_by` bigint(20) DEFAULT NULL,\n  PRIMARY KEY (`competition_id`),\n  UNIQUE KEY `uq_competition_code` (`competition_code`),\n  KEY `idx_competition_symposium` (`symposium_id`),\n  KEY `idx_competition_type` (`competition_type_id`),\n  KEY `idx_competition_venue` (`venue_id`),\n  KEY `idx_competition_date` (`event_date`),\n  KEY `fk_competition_created_by` (`created_by`),\n  KEY `fk_competition_last_modified_by` (`last_modified_by`),\n  KEY `fk_competition_deleted_by` (`deleted_by`),\n  KEY `fk_competition_archived_by` (`archived_by`),\n  KEY `fk_competition_published_by` (`published_by`),\n  KEY `idx_competition_status` (`status`),\n  KEY `idx_competition_mode` (`competition_mode`),\n  KEY `idx_competition_category` (`category`),\n  KEY `idx_competition_archived` (`is_archived`),\n  KEY `idx_competition_deleted` (`is_deleted`),\n  CONSTRAINT `fk_competition_archived_by` FOREIGN KEY (`archived_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_deleted_by` FOREIGN KEY (`deleted_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_last_modified_by` FOREIGN KEY (`last_modified_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_published_by` FOREIGN KEY (`published_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_symposium` FOREIGN KEY (`symposium_id`) REFERENCES `symposiums` (`symposium_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_type` FOREIGN KEY (`competition_type_id`) REFERENCES `competition_types` (`competition_type_id`) ON UPDATE CASCADE,\n  CONSTRAINT `fk_competition_venue` FOREIGN KEY (`venue_id`) REFERENCES `venues` (`venue_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "departments": {
+        "columns": [
+            {
+                "Field": "department_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "department_code",
+                "Type": "varchar(10)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_name",
+                "Type": "varchar(150)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "short_name",
+                "Type": "varchar(30)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_active",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `departments` (\n  `department_id` int(11) NOT NULL AUTO_INCREMENT,\n  `department_code` varchar(10) NOT NULL,\n  `department_name` varchar(150) NOT NULL,\n  `short_name` varchar(30) NOT NULL,\n  `is_active` tinyint(1) NOT NULL DEFAULT 1,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`department_id`),\n  UNIQUE KEY `uq_department_code` (`department_code`),\n  UNIQUE KEY `uq_department_name` (`department_name`)\n) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "notifications": {
+        "columns": [
+            {
+                "Field": "notification_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "recipient_type",
+                "Type": "enum('Student','User')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "recipient_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "notification_title",
+                "Type": "varchar(150)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "notification_message",
+                "Type": "text",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "delivery_channel",
+                "Type": "enum('System','Email','WhatsApp')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "System",
+                "Extra": ""
+            },
+            {
+                "Field": "delivery_status",
+                "Type": "enum('Pending','Sent','Failed')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Pending",
+                "Extra": ""
+            },
+            {
+                "Field": "sent_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "read_at",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `notifications` (\n  `notification_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `recipient_type` enum('Student','User') NOT NULL,\n  `recipient_id` bigint(20) NOT NULL,\n  `notification_title` varchar(150) NOT NULL,\n  `notification_message` text NOT NULL,\n  `delivery_channel` enum('System','Email','WhatsApp') NOT NULL DEFAULT 'System',\n  `delivery_status` enum('Pending','Sent','Failed') NOT NULL DEFAULT 'Pending',\n  `sent_at` datetime DEFAULT NULL,\n  `read_at` datetime DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`notification_id`),\n  KEY `idx_notification_recipient` (`recipient_type`,`recipient_id`),\n  KEY `idx_notification_status` (`delivery_status`)\n) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "reports_archive": {
+        "columns": [
+            {
+                "Field": "report_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "report_name",
+                "Type": "varchar(150)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "report_type",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "generated_by",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "generated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "file_path",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `reports_archive` (\n  `report_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `report_name` varchar(150) NOT NULL,\n  `report_type` varchar(100) NOT NULL,\n  `generated_by` bigint(20) NOT NULL,\n  `generated_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `file_path` varchar(255) NOT NULL,\n  PRIMARY KEY (`report_id`),\n  KEY `idx_report_generated_by` (`generated_by`),\n  CONSTRAINT `fk_report_generated_by` FOREIGN KEY (`generated_by`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "students": {
+        "columns": [
+            {
+                "Field": "student_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "register_number",
+                "Type": "varchar(25)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "roll_number",
+                "Type": "varchar(25)",
+                "Null": "YES",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "full_name",
+                "Type": "varchar(120)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "email",
+                "Type": "varchar(120)",
+                "Null": "YES",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "phone",
+                "Type": "varchar(15)",
+                "Null": "YES",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "gender",
+                "Type": "enum('Male','Female')",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "dob",
+                "Type": "date",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "password_hash",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "academic_year",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "semester",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "section",
+                "Type": "char(1)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "admission_year",
+                "Type": "year(4)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "graduation_year",
+                "Type": "year(4)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "profile_photo",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "account_status",
+                "Type": "enum('Active','Inactive')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Active",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `students` (\n  `student_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `register_number` varchar(25) NOT NULL,\n  `roll_number` varchar(25) DEFAULT NULL,\n  `department_id` int(11) NOT NULL,\n  `full_name` varchar(120) NOT NULL,\n  `email` varchar(120) DEFAULT NULL,\n  `phone` varchar(15) DEFAULT NULL,\n  `gender` enum('Male','Female') NOT NULL,\n  `dob` date DEFAULT NULL,\n  `password_hash` varchar(255) NOT NULL,\n  `academic_year` tinyint(3) unsigned NOT NULL,\n  `semester` tinyint(3) unsigned NOT NULL,\n  `section` char(1) DEFAULT NULL,\n  `admission_year` year(4) NOT NULL,\n  `graduation_year` year(4) DEFAULT NULL,\n  `profile_photo` varchar(255) DEFAULT NULL,\n  `account_status` enum('Active','Inactive') NOT NULL DEFAULT 'Active',\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`student_id`),\n  UNIQUE KEY `uq_register_number` (`register_number`),\n  UNIQUE KEY `uq_student_email` (`email`),\n  UNIQUE KEY `uq_student_phone` (`phone`),\n  UNIQUE KEY `uq_students_roll_number` (`roll_number`),\n  KEY `idx_students_department` (`department_id`),\n  KEY `idx_students_year` (`academic_year`),\n  CONSTRAINT `fk_students_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "symposium_approvals": {
+        "columns": [
+            {
+                "Field": "approval_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "symposium_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "approval_level",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "approval_stage",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "approval_order",
+                "Type": "tinyint(3) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "approver_user_id",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_id",
+                "Type": "int(11)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "enum('Pending','Approved','Revision Requested')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Pending",
+                "Extra": ""
+            },
+            {
+                "Field": "remarks",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "ip_address",
+                "Type": "varchar(45)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "approved_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `symposium_approvals` (\n  `approval_id` int(11) NOT NULL AUTO_INCREMENT,\n  `symposium_id` bigint(20) NOT NULL,\n  `approval_level` varchar(50) NOT NULL,\n  `approval_stage` varchar(50) NOT NULL,\n  `approval_order` tinyint(3) unsigned NOT NULL DEFAULT 1,\n  `approver_user_id` bigint(20) DEFAULT NULL,\n  `department_id` int(11) DEFAULT NULL,\n  `status` enum('Pending','Approved','Revision Requested') NOT NULL DEFAULT 'Pending',\n  `remarks` text DEFAULT NULL,\n  `ip_address` varchar(45) DEFAULT NULL,\n  `approved_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`approval_id`),\n  KEY `fk_approval_approver` (`approver_user_id`),\n  KEY `fk_approval_dept` (`department_id`),\n  KEY `idx_approval_status` (`symposium_id`,`status`),\n  KEY `idx_approval_order` (`symposium_id`,`approval_order`),\n  CONSTRAINT `fk_approval_approver` FOREIGN KEY (`approver_user_id`) REFERENCES `users` (`user_id`),\n  CONSTRAINT `fk_approval_dept` FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`),\n  CONSTRAINT `fk_approval_symposium` FOREIGN KEY (`symposium_id`) REFERENCES `symposiums` (`symposium_id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "symposium_departments": {
+        "columns": [
+            {
+                "Field": "id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "symposium_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_role",
+                "Type": "varchar(50)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Organizer",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `symposium_departments` (\n  `id` int(11) NOT NULL AUTO_INCREMENT,\n  `symposium_id` bigint(20) NOT NULL,\n  `department_id` int(11) NOT NULL,\n  `department_role` varchar(50) NOT NULL DEFAULT 'Organizer',\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `uq_symposium_department` (`symposium_id`,`department_id`),\n  KEY `idx_symdept_symposium_id` (`symposium_id`),\n  KEY `idx_symdept_department_id` (`department_id`),\n  CONSTRAINT `fk_symdept_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`),\n  CONSTRAINT `fk_symdept_symposium` FOREIGN KEY (`symposium_id`) REFERENCES `symposiums` (`symposium_id`) ON DELETE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "symposiums": {
+        "columns": [
+            {
+                "Field": "symposium_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "symposium_code",
+                "Type": "varchar(30)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "title",
+                "Type": "varchar(150)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "symposium_type",
+                "Type": "enum('Intra Department','Inter Department')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Intra Department",
+                "Extra": ""
+            },
+            {
+                "Field": "organizing_department_id",
+                "Type": "int(11)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "academic_year",
+                "Type": "year(4)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "description",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "theme",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "objectives",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "submitted_at",
+                "Type": "timestamp",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "submitted_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "brochure_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "circular_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "banner_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "registration_start",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "registration_end",
+                "Type": "datetime",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "event_start_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "event_end_date",
+                "Type": "date",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "status",
+                "Type": "enum('Draft','Pending HOD-CS Approval','Pending HOD-CA Approval','Pending Principal Approval','Approved','Rejected by HOD-CS','Rejected by HOD-CA','Rejected by Principal','Registration Open','Registration Closed','Completed','Cancelled')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": "Draft",
+                "Extra": ""
+            },
+            {
+                "Field": "created_by",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `symposiums` (\n  `symposium_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `symposium_code` varchar(30) NOT NULL,\n  `title` varchar(150) NOT NULL,\n  `symposium_type` enum('Intra Department','Inter Department') NOT NULL DEFAULT 'Intra Department',\n  `organizing_department_id` int(11) DEFAULT NULL,\n  `academic_year` year(4) NOT NULL,\n  `description` text DEFAULT NULL,\n  `theme` varchar(255) DEFAULT NULL,\n  `objectives` text DEFAULT NULL,\n  `submitted_at` timestamp NULL DEFAULT NULL,\n  `submitted_by` bigint(20) DEFAULT NULL,\n  `brochure_path` varchar(255) DEFAULT NULL,\n  `circular_path` varchar(255) DEFAULT NULL,\n  `banner_path` varchar(255) DEFAULT NULL,\n  `registration_start` datetime NOT NULL,\n  `registration_end` datetime NOT NULL,\n  `event_start_date` date NOT NULL,\n  `event_end_date` date NOT NULL,\n  `status` enum('Draft','Pending HOD-CS Approval','Pending HOD-CA Approval','Pending Principal Approval','Approved','Rejected by HOD-CS','Rejected by HOD-CA','Rejected by Principal','Registration Open','Registration Closed','Completed','Cancelled') NOT NULL DEFAULT 'Draft',\n  `created_by` bigint(20) NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`symposium_id`),\n  KEY `idx_symposium_year` (`academic_year`),\n  KEY `idx_symposium_status` (`status`),\n  KEY `fk_symposium_created_by` (`created_by`),\n  KEY `fk_symposium_department` (`organizing_department_id`),\n  KEY `fk_symposium_submitted_by` (`submitted_by`),\n  CONSTRAINT `fk_symposium_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`user_id`) ON UPDATE CASCADE,\n  CONSTRAINT `fk_symposium_department` FOREIGN KEY (`organizing_department_id`) REFERENCES `departments` (`department_id`) ON DELETE SET NULL ON UPDATE CASCADE,\n  CONSTRAINT `fk_symposium_submitted_by` FOREIGN KEY (`submitted_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL\n) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "system_settings": {
+        "columns": [
+            {
+                "Field": "setting_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "setting_key",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "setting_value",
+                "Type": "text",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "description",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "updated_by",
+                "Type": "bigint(20)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `system_settings` (\n  `setting_id` int(11) NOT NULL AUTO_INCREMENT,\n  `setting_key` varchar(100) NOT NULL,\n  `setting_value` text DEFAULT NULL,\n  `description` varchar(255) DEFAULT NULL,\n  `updated_by` bigint(20) DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`setting_id`),\n  UNIQUE KEY `uq_setting_key` (`setting_key`),\n  KEY `fk_system_updated_by` (`updated_by`),\n  CONSTRAINT `fk_system_updated_by` FOREIGN KEY (`updated_by`) REFERENCES `users` (`user_id`) ON DELETE SET NULL ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "team_members": {
+        "columns": [
+            {
+                "Field": "team_member_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "team_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "student_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "member_role",
+                "Type": "enum('Leader','Member')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Member",
+                "Extra": ""
+            },
+            {
+                "Field": "joined_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `team_members` (\n  `team_member_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `team_id` bigint(20) NOT NULL,\n  `student_id` bigint(20) NOT NULL,\n  `member_role` enum('Leader','Member') NOT NULL DEFAULT 'Member',\n  `joined_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`team_member_id`),\n  UNIQUE KEY `uq_team_student` (`team_id`,`student_id`),\n  KEY `idx_team_member_team` (`team_id`),\n  KEY `idx_team_member_student` (`student_id`),\n  CONSTRAINT `fk_team_member_student` FOREIGN KEY (`student_id`) REFERENCES `students` (`student_id`) ON UPDATE CASCADE,\n  CONSTRAINT `fk_team_member_team` FOREIGN KEY (`team_id`) REFERENCES `teams` (`team_id`) ON DELETE CASCADE ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "teams": {
+        "columns": [
+            {
+                "Field": "team_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "application_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "team_name",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "leader_student_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            }
+        ],
+        "create_statement": "CREATE TABLE `teams` (\n  `team_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `application_id` bigint(20) NOT NULL,\n  `team_name` varchar(100) NOT NULL,\n  `leader_student_id` bigint(20) NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  PRIMARY KEY (`team_id`),\n  KEY `idx_team_application` (`application_id`),\n  KEY `idx_team_leader` (`leader_student_id`),\n  CONSTRAINT `fk_team_application` FOREIGN KEY (`application_id`) REFERENCES `applications` (`application_id`) ON DELETE CASCADE ON UPDATE CASCADE,\n  CONSTRAINT `fk_team_leader` FOREIGN KEY (`leader_student_id`) REFERENCES `students` (`student_id`) ON UPDATE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "users": {
+        "columns": [
+            {
+                "Field": "user_id",
+                "Type": "bigint(20)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "employee_id",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "department_id",
+                "Type": "int(11)",
+                "Null": "YES",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "full_name",
+                "Type": "varchar(120)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "email",
+                "Type": "varchar(120)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "phone",
+                "Type": "varchar(15)",
+                "Null": "YES",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "password_hash",
+                "Type": "varchar(255)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "role",
+                "Type": "enum('Admin','Principal','HOD','Staff','Staff Coordinator','Student Coordinator')",
+                "Null": "NO",
+                "Key": "MUL",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "profile_photo",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "signature_path",
+                "Type": "varchar(255)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "account_status",
+                "Type": "enum('Active','Inactive','Blocked')",
+                "Null": "NO",
+                "Key": "",
+                "Default": "Active",
+                "Extra": ""
+            },
+            {
+                "Field": "last_login",
+                "Type": "datetime",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `users` (\n  `user_id` bigint(20) NOT NULL AUTO_INCREMENT,\n  `employee_id` varchar(20) NOT NULL,\n  `department_id` int(11) DEFAULT NULL,\n  `full_name` varchar(120) NOT NULL,\n  `email` varchar(120) NOT NULL,\n  `phone` varchar(15) DEFAULT NULL,\n  `password_hash` varchar(255) NOT NULL,\n  `role` enum('Admin','Principal','HOD','Staff','Staff Coordinator','Student Coordinator') NOT NULL,\n  `profile_photo` varchar(255) DEFAULT NULL,\n  `signature_path` varchar(255) DEFAULT NULL,\n  `account_status` enum('Active','Inactive','Blocked') NOT NULL DEFAULT 'Active',\n  `last_login` datetime DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`user_id`),\n  UNIQUE KEY `uq_employee_id` (`employee_id`),\n  UNIQUE KEY `uq_user_email` (`email`),\n  UNIQUE KEY `uq_user_phone` (`phone`),\n  KEY `idx_users_department` (`department_id`),\n  KEY `idx_users_role` (`role`),\n  CONSTRAINT `fk_users_department` FOREIGN KEY (`department_id`) REFERENCES `departments` (`department_id`) ON DELETE SET NULL ON UPDATE CASCADE\n) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    },
+    "venues": {
+        "columns": [
+            {
+                "Field": "venue_id",
+                "Type": "int(11)",
+                "Null": "NO",
+                "Key": "PRI",
+                "Default": null,
+                "Extra": "auto_increment"
+            },
+            {
+                "Field": "venue_code",
+                "Type": "varchar(20)",
+                "Null": "NO",
+                "Key": "UNI",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "venue_name",
+                "Type": "varchar(120)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "building_name",
+                "Type": "varchar(100)",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "floor",
+                "Type": "varchar(30)",
+                "Null": "YES",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "seating_capacity",
+                "Type": "smallint(5) unsigned",
+                "Null": "NO",
+                "Key": "",
+                "Default": null,
+                "Extra": ""
+            },
+            {
+                "Field": "is_computer_lab",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "0",
+                "Extra": ""
+            },
+            {
+                "Field": "is_active",
+                "Type": "tinyint(1)",
+                "Null": "NO",
+                "Key": "",
+                "Default": "1",
+                "Extra": ""
+            },
+            {
+                "Field": "created_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": ""
+            },
+            {
+                "Field": "updated_at",
+                "Type": "timestamp",
+                "Null": "NO",
+                "Key": "",
+                "Default": "current_timestamp()",
+                "Extra": "on update current_timestamp()"
+            }
+        ],
+        "create_statement": "CREATE TABLE `venues` (\n  `venue_id` int(11) NOT NULL AUTO_INCREMENT,\n  `venue_code` varchar(20) NOT NULL,\n  `venue_name` varchar(120) NOT NULL,\n  `building_name` varchar(100) NOT NULL,\n  `floor` varchar(30) DEFAULT NULL,\n  `seating_capacity` smallint(5) unsigned NOT NULL,\n  `is_computer_lab` tinyint(1) NOT NULL DEFAULT 0,\n  `is_active` tinyint(1) NOT NULL DEFAULT 1,\n  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),\n  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),\n  PRIMARY KEY (`venue_id`),\n  UNIQUE KEY `uq_venue_code` (`venue_code`)\n) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    }
+}

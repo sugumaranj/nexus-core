@@ -1,0 +1,192 @@
+<?php
+declare(strict_types=1);
+/**
+ * -------------------------------------------------------------------------
+ * NexusCore EMS — Combined Allocation Report
+ * Location    : templates/allocation/reports/combined_report.php
+ * Layout      : print (A4 portrait, print-ready)
+ * -------------------------------------------------------------------------
+ */
+$symposium   = $symposium   ?? [];
+$events      = $events      ?? [];
+$generatedBy = $generatedBy ?? 'System';
+$generatedAt = $generatedAt ?? \App\Helpers\DateHelper::dateTime('now');
+
+$symTitle     = htmlspecialchars($symposium['title'] ?? '');
+$symYear      = htmlspecialchars($symposium['academic_year'] ?? '');
+$collegeName  = config('college_name');
+
+$totalEvents = count($events);
+$totalFac    = 0;
+$totalJdg    = 0;
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Combined Resource Allocation Report — <?= $symTitle ?></title>
+    <style>
+        @page { size: A4 portrait; margin: 18mm 15mm 22mm; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10.5pt; color: #1a202c; background: white; margin: 0; padding: 0; }
+        .report-header { text-align: center; border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 16px; }
+        .college-name { font-size: 13.5pt; font-weight: 700; color: #312e81; margin-bottom: 2px; }
+        .report-title  { font-size: 11.5pt; font-weight: 700; color: #4f46e5; margin: 6px 0 2px; }
+        .report-sub    { font-size: 9pt; color: #6c757d; }
+        .meta-row { display: flex; justify-content: space-between; font-size: 9pt; color: #6c757d; margin-bottom: 14px; }
+        .section-title { font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #4f46e5; margin: 14px 0 6px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+        table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 14px; }
+        th { background: #4f46e5; color: white; padding: 7px 10px; font-weight: 600; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .05em; text-align: left; }
+        td { padding: 7px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+        tr:nth-child(even) td { background: #f8fafc; }
+        .event-row td { background: #eef2ff; font-weight: 700; color: #4f46e5; font-size: 9pt; }
+        .session-badge { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 8pt; font-weight: 600; }
+        .session-fn   { background: #dbeafe; color: #1d4ed8; }
+        .session-an   { background: #fef3c7; color: #92400e; }
+        .session-full { background: #d1fae5; color: #065f46; }
+        .staff-list { margin: 0; padding-left: 14px; font-size: 8.5pt; }
+        .staff-list li { margin-bottom: 2px; }
+        .sig-block { margin-top: 40px; page-break-inside: avoid; }
+        .sig-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+        .sig-item  { border-top: 1px solid #374151; padding-top: 8px; font-size: 8.5pt; }
+        .sig-label { font-weight: 700; color: #374151; }
+        .sig-sub   { color: #6c757d; font-size: 8pt; }
+        .sig-line  { height: 36px; }
+        .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 8pt; color: #9ca3af; border-top: 1px solid #e2e8f0; padding: 4px 0; }
+        .footer-content { max-width: 180mm; margin: 0 auto; display: flex; justify-content: space-between; }
+        .missing-badge { color: #dc2626; font-size: 8pt; font-style: italic; }
+        @media print {
+            .no-print { display: none !important; }
+            body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="no-print" style="text-align:right; padding:8px 12px; background:#f8f9fa; border-bottom:1px solid #e2e8f0; margin-bottom:16px;">
+    <button onclick="window.print()" style="background:#4f46e5; color:white; border:none; padding:6px 18px; border-radius:6px; cursor:pointer; font-size:10pt;">
+        🖨 Print / Save PDF
+    </button>
+    <a href="<?= base_url() ?>/symposiums/allocation?symposium_id=<?= (int)($symposium['symposium_id'] ?? 0) ?>" style="margin-left:8px; color:#6c757d; font-size:9pt; text-decoration:none;">← Back</a>
+</div>
+
+<div class="report-header">
+    <div class="college-name"><?= htmlspecialchars($collegeName) ?></div>
+    <div style="font-size:9.5pt; color:#4b5563; margin-bottom:6px;">Department of Computer Science &amp; Applications</div>
+    <div class="report-title">COMBINED RESOURCE ALLOCATION REPORT</div>
+    <div class="report-sub"><?= $symTitle ?> &bull; Academic Year: <?= $symYear ?></div>
+</div>
+
+<div class="meta-row">
+    <div><strong>Report ID:</strong> ALLOC-<?= date('Ymd') ?>-<?= str_pad((string)($symposium['symposium_id'] ?? 0), 4, '0', STR_PAD_LEFT) ?></div>
+    <div><strong>Total Events:</strong> <?= $totalEvents ?></div>
+    <div><strong>Generated By:</strong> <?= htmlspecialchars($generatedBy) ?></div>
+    <div><strong>Generated On:</strong> <?= htmlspecialchars($generatedAt) ?></div>
+</div>
+
+<div class="section-title">Event Staffing Summary</div>
+
+<table>
+    <thead>
+        <tr>
+            <th style="width:4%">#</th>
+            <th style="width:20%">Event</th>
+            <th style="width:16%">Schedule</th>
+            <th style="width:14%">Venue</th>
+            <th style="width:23%">Faculty In-Charge</th>
+            <th style="width:23%">Judges</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php if (empty($events)): ?>
+        <tr><td colspan="6" style="text-align:center; color:#9ca3af; padding:20px;">No events found for this symposium.</td></tr>
+        <?php else: ?>
+        <?php $n = 1; foreach ($events as $event):
+            $facList = $event['faculty'] ?? [];
+            $jdgList = $event['judges'] ?? [];
+            $totalFac += count($facList);
+            $totalJdg += count($jdgList);
+            $sessBadge = match($event['session'] ?? '') {
+                'FN'       => '<span class="session-badge session-fn">FN</span>',
+                'AN'       => '<span class="session-badge session-an">AN</span>',
+                'Full Day' => '<span class="session-badge session-full">Full</span>',
+                default    => htmlspecialchars($event['session'] ?? '')
+            };
+        ?>
+        <tr>
+            <td><?= $n++ ?></td>
+            <td><strong><?= htmlspecialchars($event['event_name'] ?? '') ?></strong></td>
+            <td>
+                <?= $event['event_date'] ? \App\Helpers\DateHelper::date($event['event_date']) : '—' ?><br>
+                <?= $sessBadge ?> <span style="font-size:8.5pt; color:#6c757d;"><?php
+                    $st = \App\Helpers\DateHelper::time($event['start_time'] ?? null, '');
+                    $et = \App\Helpers\DateHelper::time($event['end_time'] ?? null, '');
+                    echo htmlspecialchars(trim($st . ($st && $et ? ' – ' : '') . $et));
+                ?></span>
+            </td>
+            <td><?= htmlspecialchars($event['venue_name'] ?? '—') ?></td>
+            <td>
+                <?php if (empty($facList)): ?>
+                <span class="missing-badge">Not Assigned</span>
+                <?php else: ?>
+                <ul class="staff-list">
+                    <?php foreach ($facList as $f): ?>
+                    <li><?= htmlspecialchars($f['full_name'] ?? '') ?> <span style="color:#6c757d;">(<?= htmlspecialchars($f['department_code'] ?? '—') ?>)</span></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </td>
+            <td>
+                <?php if (empty($jdgList)): ?>
+                <span class="missing-badge">Not Assigned</span>
+                <?php else: ?>
+                <ul class="staff-list">
+                    <?php foreach ($jdgList as $j): ?>
+                    <li><?= htmlspecialchars($j['full_name'] ?? '') ?> <span style="color:#6c757d;">(<?= htmlspecialchars($j['department_code'] ?? '—') ?>)</span></li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        <tr style="background:#eef2ff !important; font-weight:700; color:#4f46e5;">
+            <td colspan="4" style="text-align:right;">Total Allocations</td>
+            <td><?= $totalFac ?> Faculty Assigned</td>
+            <td><?= $totalJdg ?> Judges Assigned</td>
+        </tr>
+        <?php endif; ?>
+    </tbody>
+</table>
+
+<div class="sig-block">
+    <div class="section-title">Signatures</div>
+    <div class="sig-grid" style="margin-top:32px;">
+        <div class="sig-item">
+            <div class="sig-line"></div>
+            <div class="sig-label">Coordinator</div>
+            <div class="sig-sub">Staff Coordinator</div>
+        </div>
+        <div class="sig-item">
+            <div class="sig-line"></div>
+            <div class="sig-label">Verified By</div>
+            <div class="sig-sub">HOD</div>
+        </div>
+        <div class="sig-item">
+            <div class="sig-line"></div>
+            <div class="sig-label">Approved By</div>
+            <div class="sig-sub">Principal</div>
+        </div>
+    </div>
+</div>
+
+<div class="footer">
+    <div class="footer-content">
+        <span><?= htmlspecialchars($collegeName) ?> — NexusCore EMS</span>
+        <span>Combined Allocation Report &bull; <?= $symTitle ?></span>
+        <span>Generated: <?= htmlspecialchars($generatedAt) ?></span>
+    </div>
+</div>
+
+<script>window.onload = function() { if (new URLSearchParams(location.search).get('print') === '1') window.print(); }</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{
+  "name": "NexusCore EMS",
+  "short_name": "NexusCore",
+  "description": "NexusCore Event Management System — Offline-capable attendance management for symposium coordinators.",
+  "start_url": "/NexusCore/dashboard",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#1f2937",
+  "background_color": "#f4f7fc",
+  "lang": "en",
+  "scope": "/NexusCore/",
+  "icons": [
+    {
+      "src": "/NexusCore/public/assets/images/logo/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/NexusCore/public/assets/images/logo/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/NexusCore/public/assets/images/logo/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/NexusCore/public/assets/images/logo/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Attendance",
+      "short_name": "Attend",
+      "description": "Open Attendance module",
+      "url": "/NexusCore/attendance",
+      "icons": [{ "src": "/NexusCore/public/assets/images/logo/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Sync Center",
+      "short_name": "Sync",
+      "description": "Open Sync Center",
+      "url": "/NexusCore/sync-center",
+      "icons": [{ "src": "/NexusCore/public/assets/images/logo/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "prefer_related_applications": false
+}
