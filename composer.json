@@ -2,7 +2,7 @@
   "name": "sugumaran/nexuscore",
   "description": "Academic Symposium Management Platform",
   "type": "project",
-  "license": "MIT",
+  "license": "proprietary",
   "require": {
     "php": "^8.2",
     "vlucas/phpdotenv": "*",

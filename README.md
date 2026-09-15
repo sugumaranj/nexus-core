@@ -69,13 +69,6 @@ docker-compose up -d
 ```
 Access the application at `http://localhost`.
 
-## Testing
-
-The project uses PHPUnit for automated testing. Tests are located in the `tests/` directory.
-
-```bash
-vendor/bin/phpunit
-```
 
 ## Deployment Basics
 
