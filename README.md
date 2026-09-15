@@ -47,11 +47,11 @@ NexusCore is a comprehensive Event Management System built for managing academic
 
 ## Database Setup
 
-1. Create a new MySQL database (e.g., `nexus_ems_db`).
-2. Import the schema definitions found in `database/schema/` in numerical order (from `01` to `16`).
-3. Import the initial master data found in `database/seeders/10_master_data.sql`.
-
-Alternatively, if a migration script is provided in the repository, you can run it.
+1. Open XAMPP and start **Apache** and **MySQL**.
+2. Go to `http://localhost/phpmyadmin` in your browser.
+3. Create a new MySQL database (name it exactly what you put in your `.env` file, usually `nexus_ems`).
+4. Click on the **Import** tab.
+5. Select the `nexus_ems_clean_export.sql` file located in the root of this repository and click **Import**.
 
 ## Running Locally
 
