@@ -182,6 +182,12 @@ if (!empty($student['student_id'])) {
                 </a>
             </li>
 
+            <li class="nav-item">
+                <a class="nav-link" href="<?= base_url() ?>/student/feedback">
+                    <i class="bi bi-chat-square-text me-1"></i> Feedback
+                </a>
+            </li>
+
         </ul>
 
         <!-- Right Side -->

@@ -42,6 +42,7 @@ declare(strict_types=1);
                             <th>Type</th>
                             <th>Status</th>
                             <th>Registered On</th>
+                            <th>Feedback</th>
                             <th class="text-center">Actions</th>
                         </tr>
                     </thead>
@@ -100,6 +101,18 @@ declare(strict_types=1);
                                     <span class="badge bg-<?= $statusClass ?>"><?= htmlspecialchars($app['application_status'], ENT_QUOTES, 'UTF-8') ?></span>
                                 </td>
                                 <td><?= \App\Helpers\DateHelper::dateTime($app['applied_at']) ?></td>
+                                <td>
+                                    <?php 
+                                    $eid = (int)($app['symposium_event_id'] ?? 0);
+                                    $fbStatus = $feedbackStatuses[$eid] ?? 'not_finalized';
+                                    if ($fbStatus === 'not_finalized' || $fbStatus === 'absent' || $fbStatus === 'no_record'): ?>
+                                        <span class="badge bg-secondary">Feedback Unavailable</span>
+                                    <?php elseif ($fbStatus === 'available'): ?>
+                                        <a class="btn btn-sm btn-outline-primary" href="<?= base_url() ?>/student/feedback/event?id=<?= $eid ?>">Give Feedback</a>
+                                    <?php elseif ($fbStatus === 'submitted'): ?>
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Feedback Submitted</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td class="text-center">
                                     <div class="d-flex justify-content-center gap-2">
                                         <?php if ($app['application_type'] === 'Team' && $app['team_id']): ?>

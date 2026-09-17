@@ -23,6 +23,8 @@ use App\Controllers\AuthController;
 use App\Controllers\AttendanceController;
 use App\Controllers\RegistrationCoordinatorController;
 use App\Controllers\DashboardController;
+use App\Controllers\StudentFeedbackController;
+use App\Controllers\FeedbackController;
 use App\Controllers\DepartmentController;
 use App\Controllers\ResourceAllocationController;
 use App\Controllers\VenueController;
@@ -979,6 +981,20 @@ $router->get(
     [ChatbotController::class, 'getHistory']
 );
 
+// Student Feedback
+$router->get(
+    '/student/feedback',
+    [StudentFeedbackController::class, 'index']
+);
+$router->get(
+    '/student/feedback/event',
+    [StudentFeedbackController::class, 'form']
+);
+$router->post(
+    '/student/feedback/submit',
+    [StudentFeedbackController::class, 'submit']
+);
+
 // Schedule Image Export (Staff Coordinator WhatsApp Share)
 $router->get(
     '/schedule/image',
@@ -1061,6 +1077,16 @@ $router->get(
     '/attendance/judge-mark-sheet',
     [AttendanceController::class, 'judgeMarkSheet']
 );
+
+// Feedback — HOD / Staff Coordinator
+$router->get('/feedback', [FeedbackController::class, 'index']);
+$router->get('/feedback/event', [FeedbackController::class, 'event']);
+
+// Feedback — FIC (event-scoped)
+$router->get('/feedback/fic/event', [FeedbackController::class, 'ficEvent']);
+
+// Feedback — Judge (event-scoped)
+$router->get('/feedback/judge/event', [FeedbackController::class, 'judgeEvent']);
 
 
 /*

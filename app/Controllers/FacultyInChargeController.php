@@ -129,6 +129,16 @@ final class FacultyInChargeController extends BaseController
             }
         }
 
+        // Add Feedback Variables
+        $feedbackService = new \App\Services\FeedbackService();
+        $feedbackFinalized = $feedbackService->isAttendanceFinalized($eventId);
+        $feedbackSummary = [];
+        $feedbackReviews = [];
+        if ($feedbackFinalized) {
+            $feedbackSummary = $feedbackService->getEventFeedbackSummary($eventId);
+            $feedbackReviews = $feedbackService->getEventAnonymousReviews($eventId, 50, 0);
+        }
+
         $this->render('fic.event_detail', [
             'pageTitle'        => 'Manage Event — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
             'user'             => $user,
@@ -140,6 +150,9 @@ final class FacultyInChargeController extends BaseController
             'stages'           => $detail['stages'] ?? [],
             'attendanceLocked' => $attendanceLocked,
             'finalizedSession' => $finalizedSession,
+            'feedbackFinalized'=> $feedbackFinalized,
+            'feedbackSummary'  => $feedbackSummary,
+            'feedbackReviews'  => $feedbackReviews,
         ]);
     }
 
