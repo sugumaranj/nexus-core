@@ -210,6 +210,43 @@ if (!empty($event['snapshot_evaluation'])) {
     </div>
 </div>
 
+<!-- ======================================================= -->
+<!-- Feedback Summary Section                                -->
+<!-- ======================================================= -->
+<div class="row mt-4">
+    <div class="col-12">
+        <?php if (!($feedbackFinalized ?? false)): ?>
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-chat-square-text text-muted fs-2 d-block mb-2"></i>
+                    <h6 class="fw-bold mb-1">Feedback Unavailable</h6>
+                    <p class="text-muted small mb-0">Feedback data will be available after attendance is finalized.</p>
+                </div>
+            </div>
+        <?php else: ?>
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-white border-bottom py-3 rounded-top-4">
+                    <h5 class="mb-0 fw-bold text-primary">
+                        <i class="bi bi-bar-chart-line me-2"></i>Anonymous Feedback Summary
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <?php 
+                    $subData = [
+                        'event'   => $event,
+                        'summary' => $feedbackSummary ?? [],
+                        'reviews' => $feedbackReviews ?? [],
+                        'hideHeader' => true,
+                    ];
+                    extract($subData);
+                    require dirname(__DIR__) . '/feedback/event_summary.php';
+                    ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
 <!-- Final Submit Confirmation Modal -->
 <div class="modal fade" id="finalSubmitModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered">

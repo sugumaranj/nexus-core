@@ -391,6 +391,7 @@ final class RoleHelper
             ['title' => 'Approved Symposiums','icon' => 'bi-calendar-check',    'url' => '/symposiums?status=Approved'],
             ['title' => 'Judge Dashboard',    'icon' => 'bi-star',              'url' => '/judge/dashboard'],
             ['title' => 'Reports',            'icon' => 'bi-bar-chart',         'url' => '/reports'],
+            ['title' => 'Event Feedback',     'icon' => 'bi-chat-square-text',  'url' => '/feedback'],
             ['title' => 'Sync Center',        'icon' => 'bi-arrow-repeat',      'url' => '/sync-center'],
         ];
     }
@@ -407,6 +408,7 @@ final class RoleHelper
             ['title' => 'Symposiums',            'icon' => 'bi-calendar-event', 'url' => '/symposiums'],
             ['title' => 'Registrations',         'icon' => 'bi-card-checklist', 'url' => '/coordinator/registrations'],
             ['title' => 'Attendance',            'icon' => 'bi-calendar2-check','url' => '/attendance'],
+            ['title' => 'Event Feedback',        'icon' => 'bi-chat-square-text','url' => '/feedback'],
 
             ['title' => 'OPERATIONS',            'is_header' => true],
             ['title' => 'Staff Allocation',      'icon' => 'bi-people-fill',    'url' => '/symposiums/allocation'],

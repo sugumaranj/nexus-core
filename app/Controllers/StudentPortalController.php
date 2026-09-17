@@ -291,11 +291,22 @@ class StudentPortalController extends BaseController
         $studentId    = (int)($studentSession['student_id'] ?? 0);
 
         $applications = $this->appModel->getByStudentEventBased($studentId);
+        
+        $eventIds = [];
+        foreach ($applications as $app) {
+            if (!empty($app['symposium_event_id'])) {
+                $eventIds[] = (int)$app['symposium_event_id'];
+            }
+        }
+        
+        $feedbackService = new \App\Services\FeedbackService();
+        $feedbackStatuses = $feedbackService->getStudentFeedbackStatusesForEvents($studentId, $eventIds);
 
         $this->render('student.my_registrations', [
             'pageTitle'        => 'My Registrations',
             'applications'     => $applications,
             'currentStudentId' => $studentId,
+            'feedbackStatuses' => $feedbackStatuses,
         ], 'student');
     }
 
