@@ -129,30 +129,30 @@ final class FacultyInChargeController extends BaseController
             }
         }
 
-        // Add Feedback Variables
-        $feedbackService = new \App\Services\FeedbackService();
+        // Feedback Variables
+        $feedbackService   = new \App\Services\FeedbackService();
         $feedbackFinalized = $feedbackService->isAttendanceFinalized($eventId);
-        $feedbackSummary = [];
-        $feedbackReviews = [];
+        $feedbackSummary   = [];
+        $feedbackList      = [];
         if ($feedbackFinalized) {
             $feedbackSummary = $feedbackService->getEventFeedbackSummary($eventId);
-            $feedbackReviews = $feedbackService->getEventAnonymousReviews($eventId, 50, 0);
+            $feedbackList    = $feedbackService->getEventFeedback($eventId, 50, 0);
         }
 
         $this->render('fic.event_detail', [
-            'pageTitle'        => 'Manage Event — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
-            'user'             => $user,
-            'event'            => $detail['event'],
-            'currentFic'       => $detail['current_fic'],
-            'currentJudges'    => $detail['current_judges'],
-            'staffList'        => $detail['assignable_staff'],
-            'regCount'         => $detail['registration_count'],
-            'stages'           => $detail['stages'] ?? [],
-            'attendanceLocked' => $attendanceLocked,
-            'finalizedSession' => $finalizedSession,
-            'feedbackFinalized'=> $feedbackFinalized,
-            'feedbackSummary'  => $feedbackSummary,
-            'feedbackReviews'  => $feedbackReviews,
+            'pageTitle'         => 'Manage Event — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
+            'user'              => $user,
+            'event'             => $detail['event'],
+            'currentFic'        => $detail['current_fic'],
+            'currentJudges'     => $detail['current_judges'],
+            'staffList'         => $detail['assignable_staff'],
+            'regCount'          => $detail['registration_count'],
+            'stages'            => $detail['stages'] ?? [],
+            'attendanceLocked'  => $attendanceLocked,
+            'finalizedSession'  => $finalizedSession,
+            'feedbackFinalized' => $feedbackFinalized,
+            'feedbackSummary'   => $feedbackSummary,
+            'feedbackList'      => $feedbackList,
         ]);
     }
 

@@ -152,14 +152,14 @@ final class JudgeController extends BaseController
         
         $isLocked = (bool)$event['is_locked'] || $hasFinalSubmission || $windowExpired;
 
-        // Add Feedback Variables
-        $feedbackService = new \App\Services\FeedbackService();
+        // Feedback Variables
+        $feedbackService   = new \App\Services\FeedbackService();
         $feedbackFinalized = $feedbackService->isAttendanceFinalized($eventId);
-        $feedbackSummary = [];
-        $feedbackReviews = [];
+        $feedbackSummary   = [];
+        $feedbackList      = [];
         if ($feedbackFinalized) {
             $feedbackSummary = $feedbackService->getEventFeedbackSummary($eventId);
-            $feedbackReviews = $feedbackService->getEventAnonymousReviews($eventId, 50, 0);
+            $feedbackList    = $feedbackService->getEventFeedback($eventId, 50, 0);
         }
 
         $this->render('judge.evaluate', [
@@ -180,7 +180,7 @@ final class JudgeController extends BaseController
             'guidelines'           => $event['snapshot_evaluation'] ? (json_decode($event['snapshot_evaluation'], true)['scoring_guidelines'] ?? '') : '',
             'feedbackFinalized'    => $feedbackFinalized,
             'feedbackSummary'      => $feedbackSummary,
-            'feedbackReviews'      => $feedbackReviews,
+            'feedbackList'         => $feedbackList,
         ]);
     }
 

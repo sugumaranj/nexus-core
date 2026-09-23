@@ -2,6 +2,37 @@
 
 declare(strict_types=1);
 
+/**
+ * -------------------------------------------------------------------------
+ * NexusCore
+ * -------------------------------------------------------------------------
+ * File        : FeedbackService.php
+ * Location    : app/Services/
+ * Description : Business logic for the identified student feedback module.
+ *
+ * Architecture
+ * -------------------------------------------------------------------------
+ * • Student identity is obtained from the authenticated session — never
+ *   from POST input.
+ * • Feedback is identified: each submission is associated with a real
+ *   student_id. Authorized staff can see full student identity.
+ * • Eligibility: Present OR Late in a finalized (Closed) attendance
+ *   session. Absent and no-record students are not eligible.
+ * • Duplicate prevention: application-level check + DB unique constraint
+ *   on (symposium_event_id, student_id).
+ * • Authorization: FIC and Judge may only view feedback for events they
+ *   are actively assigned to.
+ *
+ * Removed in 2026-09-23 refactor
+ * -------------------------------------------------------------------------
+ * • getSecret()             — HMAC secret no longer needed
+ * • hash generation method  — HMAC workflow removed
+ * • anonymous review method — replaced by identified getEventFeedback()
+ *
+ * Project     : NexusCore
+ * -------------------------------------------------------------------------
+ */
+
 namespace App\Services;
 
 use App\Models\FeedbackModel;
@@ -9,53 +40,33 @@ use App\Models\AttendanceSessionModel;
 use App\Models\SymposiumEventModel;
 use App\Models\FacultyAssignmentModel;
 use App\Models\JudgeAssignmentModel;
-use App\Core\Session;
 
 class FeedbackService
 {
-    private FeedbackModel $feedbackModel;
+    private FeedbackModel          $feedbackModel;
     private AttendanceSessionModel $sessionModel;
-    private SymposiumEventModel $eventModel;
+    private SymposiumEventModel    $eventModel;
     private FacultyAssignmentModel $facultyModel;
-    private JudgeAssignmentModel $judgeModel;
+    private JudgeAssignmentModel   $judgeModel;
 
     public function __construct()
     {
-        $this->feedbackModel  = new FeedbackModel();
-        $this->sessionModel   = new AttendanceSessionModel();
-        $this->eventModel     = new SymposiumEventModel();
-        $this->facultyModel   = new FacultyAssignmentModel();
-        $this->judgeModel     = new JudgeAssignmentModel();
+        $this->feedbackModel = new FeedbackModel();
+        $this->sessionModel  = new AttendanceSessionModel();
+        $this->eventModel    = new SymposiumEventModel();
+        $this->facultyModel  = new FacultyAssignmentModel();
+        $this->judgeModel    = new JudgeAssignmentModel();
     }
 
-    /**
-     * Get the feedback anonymization secret.
-     * @return string
-     */
-    private function getSecret(): string
-    {
-        $secret = $_ENV['FEEDBACK_ANON_SECRET'] ?? '';
-        if (empty($secret)) {
-            throw new \RuntimeException('FEEDBACK_ANON_SECRET is not configured.');
-        }
-        return $secret;
-    }
+    // =========================================================================
+    // ATTENDANCE FINALIZATION
+    // =========================================================================
 
     /**
-     * Generate respondent hash.
-     * 
-     * @param int $studentId
-     * @param int $eventId
-     * @return string
-     */
-    public function generateHash(int $studentId, int $eventId): string
-    {
-        return hash_hmac('sha256', $studentId . '|' . $eventId, $this->getSecret());
-    }
-
-    /**
-     * Check if an event's attendance is finalized (no open session, and has a closed session).
-     * 
+     * Check if an event's attendance is finalized.
+     *
+     * Finalized = no currently Open session AND a Closed session exists.
+     *
      * @param int $eventId
      * @return bool
      */
@@ -71,22 +82,26 @@ class FeedbackService
     }
 
     /**
-     * Get the finalized attendance session for an event.
-     * 
+     * Get the finalized (Closed) attendance session for an event.
+     *
      * @param int $eventId
      * @return array|false
      */
-    public function getFinalizedSession(int $eventId)
+    public function getFinalizedSession(int $eventId): array|false
     {
         return $this->sessionModel->getFinalizedEventSession($eventId);
     }
 
+    // =========================================================================
+    // ELIGIBILITY
+    // =========================================================================
+
     /**
-     * Get student attendance status.
-     * 
+     * Get a student's attendance status from the finalized session.
+     *
      * @param int $studentId
      * @param int $eventId
-     * @return string|null
+     * @return string|null  null if no finalized session or no record
      */
     public function getStudentAttendanceStatus(int $studentId, int $eventId): ?string
     {
@@ -95,76 +110,106 @@ class FeedbackService
             return null;
         }
 
-        return $this->feedbackModel->getStudentAttendanceStatus($studentId, $eventId, (int)$session['session_id']);
+        return $this->feedbackModel->getStudentAttendanceStatus(
+            $studentId,
+            $eventId,
+            (int) $session['session_id']
+        );
     }
 
     /**
-     * Check if student is eligible.
-     * 
+     * Check if a student is eligible to submit feedback for an event.
+     *
+     * Eligible: attendance finalized AND status is Present or Late.
+     *
      * @param int $studentId
      * @param int $eventId
-     * @return array ['eligible' => bool, 'reason' => string]
+     * @return array{eligible: bool, reason: string}
      */
     public function isStudentEligible(int $studentId, int $eventId): array
     {
         if (!$this->isAttendanceFinalized($eventId)) {
-            return ['eligible' => false, 'reason' => 'Attendance is not finalized for this event yet.'];
+            return [
+                'eligible' => false,
+                'reason'   => 'Feedback is not yet available. Attendance must be finalized first.',
+            ];
         }
 
         $status = $this->getStudentAttendanceStatus($studentId, $eventId);
+
         if ($status === null) {
-            return ['eligible' => false, 'reason' => 'You have no attendance record for this event.'];
+            return [
+                'eligible' => false,
+                'reason'   => 'You have no attendance record for this event.',
+            ];
         }
 
         if ($status !== 'Present' && $status !== 'Late') {
-            return ['eligible' => false, 'reason' => 'Feedback is unavailable because your attendance was marked as Absent.'];
+            return [
+                'eligible' => false,
+                'reason'   => 'Feedback is unavailable because your attendance was marked as Absent.',
+            ];
         }
 
         return ['eligible' => true, 'reason' => ''];
     }
 
+    // =========================================================================
+    // DUPLICATE CHECK
+    // =========================================================================
+
     /**
-     * Check if student has already submitted feedback.
-     * 
+     * Check if a student has already submitted feedback for this event.
+     *
      * @param int $studentId
      * @param int $eventId
      * @return bool
      */
     public function hasStudentSubmitted(int $studentId, int $eventId): bool
     {
-        $hash = $this->generateHash($studentId, $eventId);
-        return $this->feedbackModel->existsByHash($eventId, $hash);
+        return $this->feedbackModel->existsByStudent($eventId, $studentId);
     }
 
+    // =========================================================================
+    // SUBMISSION
+    // =========================================================================
+
     /**
-     * Process feedback submission.
-     * 
-     * @param int $studentId
-     * @param int $eventId
-     * @param int $rating
-     * @param string|null $review
-     * @return array
+     * Process a student's feedback submission.
+     *
+     * studentId MUST come from the authenticated session — never from POST.
+     *
+     * @param int         $studentId  From session only
+     * @param int         $eventId    From POST (server-validated)
+     * @param int         $rating     1–5
+     * @param string|null $review     Optional, max 2000 chars
+     * @return array{success: bool, message: string}
      */
     public function submitFeedback(int $studentId, int $eventId, int $rating, ?string $review): array
     {
+        // 1. Basic parameter validation
         if ($studentId <= 0 || $eventId <= 0) {
             return ['success' => false, 'message' => 'Invalid parameters.'];
         }
 
+        // 2. Verify event exists
         $event = $this->eventModel->findById($eventId);
         if (!$event) {
             return ['success' => false, 'message' => 'Event not found.'];
         }
 
+        // 3. Eligibility check (attendance finalized + Present/Late)
         $eligibility = $this->isStudentEligible($studentId, $eventId);
         if (!$eligibility['eligible']) {
             return ['success' => false, 'message' => $eligibility['reason']];
         }
 
+        // 4. Rating validation (1–5 only)
         if (!in_array($rating, [1, 2, 3, 4, 5], true)) {
             return ['success' => false, 'message' => 'Rating must be between 1 and 5.'];
         }
 
+        // 5. Review sanitization
         if ($review !== null) {
             $review = trim($review);
             if (mb_strlen($review) > 2000) {
@@ -175,64 +220,42 @@ class FeedbackService
             }
         }
 
-        $hash = $this->generateHash($studentId, $eventId);
-
-        if ($this->feedbackModel->existsByHash($eventId, $hash)) {
+        // 6. Application-level duplicate check
+        if ($this->feedbackModel->existsByStudent($eventId, $studentId)) {
             return ['success' => false, 'message' => 'You have already submitted feedback for this event.'];
         }
 
+        // 7. Persist (DB unique constraint provides final duplicate protection)
         try {
-            $id = $this->feedbackModel->insert($eventId, $hash, $rating, $review);
+            $id = $this->feedbackModel->insertFeedback($eventId, $studentId, $rating, $review);
 
             if ($id > 0) {
                 return ['success' => true, 'message' => 'Feedback submitted successfully.'];
             }
-            return ['success' => false, 'message' => 'Failed to save feedback.'];
+
+            return ['success' => false, 'message' => 'Failed to save feedback. Please try again.'];
         } catch (\PDOException $e) {
-            // SQLSTATE 23000 is Integrity constraint violation (e.g. duplicate key)
+            // SQLSTATE 23000 = unique constraint violation (concurrent duplicate)
             if ($e->getCode() === '23000') {
                 return ['success' => false, 'message' => 'You have already submitted feedback for this event.'];
             }
-            // Log it in a real app, hide from user
-            return ['success' => false, 'message' => 'A database error occurred.'];
+            return ['success' => false, 'message' => 'A database error occurred. Please try again.'];
         }
     }
 
-    /**
-     * Get single student feedback status for UI logic.
-     * 
-     * @param int $studentId
-     * @param int $eventId
-     * @return string
-     */
-    public function getStudentFeedbackStatusForEvent(int $studentId, int $eventId): string
-    {
-        if (!$this->isAttendanceFinalized($eventId)) {
-            return 'not_finalized';
-        }
-
-        $status = $this->getStudentAttendanceStatus($studentId, $eventId);
-        if ($status === null) {
-            return 'no_record';
-        }
-
-        if ($status !== 'Present' && $status !== 'Late') {
-            return 'absent';
-        }
-
-        if ($this->hasStudentSubmitted($studentId, $eventId)) {
-            return 'submitted';
-        }
-
-        return 'available';
-    }
+    // =========================================================================
+    // STUDENT FEEDBACK PAGE DATA
+    // =========================================================================
 
     /**
-     * Get bulk feedback statuses (avoids N+1 query problem).
-     * 
-     * @param int $studentId
+     * Compute per-event feedback status for a student (bulk, avoids N+1).
+     *
+     * Returns a map of [event_id => status_string] where status is one of:
+     *   'not_finalized' | 'no_record' | 'absent' | 'available' | 'submitted'
+     *
+     * @param int   $studentId
      * @param array $eventIds
-     * @return array
+     * @return array<int, string>
      */
     public function getStudentFeedbackStatusesForEvents(int $studentId, array $eventIds): array
     {
@@ -240,30 +263,31 @@ class FeedbackService
             return [];
         }
 
-        // 1. Get finalized sessions for these events
-        // Optimization: For simplicity here, we'll iterate, but it's small loops.
-        // A full SQL IN() could be written in session model, but this is fine since it's cached / fast.
+        // 1. Resolve finalized sessions and active sessions in bulk
         $finalizedSessions = [];
-        $activeEvents = [];
-        
+        $activeEvents      = [];
+
         foreach ($eventIds as $eid) {
             if ($this->sessionModel->getActiveEventSession($eid)) {
                 $activeEvents[$eid] = true;
             } else {
                 $session = $this->sessionModel->getFinalizedEventSession($eid);
                 if ($session) {
-                    $finalizedSessions[$eid] = (int)$session['session_id'];
+                    $finalizedSessions[$eid] = (int) $session['session_id'];
                 }
             }
         }
 
-        // 2. Load attendance statuses in bulk
-        $sessionIds = array_values($finalizedSessions);
-        $attendanceStatuses = $this->feedbackModel->getStudentAttendanceStatusesForSessions($studentId, $sessionIds);
+        // 2. Bulk fetch attendance statuses
+        $sessionIds        = array_values($finalizedSessions);
+        $attendanceStatuses = $this->feedbackModel->getStudentAttendanceStatusesForSessions(
+            $studentId,
+            $sessionIds
+        );
 
-        // 3. Prepare hashes for eligible events
-        $hashMap = [];
-        $results = [];
+        // 3. Determine status per event
+        $results         = [];
+        $eligibleEventIds = [];
 
         foreach ($eventIds as $eid) {
             if (isset($activeEvents[$eid])) {
@@ -272,41 +296,39 @@ class FeedbackService
             }
 
             if (!isset($finalizedSessions[$eid])) {
-                $results[$eid] = 'not_finalized'; // or no finalized session
+                $results[$eid] = 'not_finalized';
                 continue;
             }
 
-            $sessionId = $finalizedSessions[$eid];
-            $attStatus = $attendanceStatuses[$sessionId] ?? null;
+            $sessionId  = $finalizedSessions[$eid];
+            $attStatus  = $attendanceStatuses[$sessionId] ?? null;
 
             if ($attStatus === null) {
                 $results[$eid] = 'no_record';
             } elseif ($attStatus !== 'Present' && $attStatus !== 'Late') {
                 $results[$eid] = 'absent';
             } else {
-                // Eligible, so compute hash for bulk check
-                $hashMap[$eid] = $this->generateHash($studentId, $eid);
+                $eligibleEventIds[] = $eid;
             }
         }
 
-        // 4. Bulk check if already submitted
-        $submittedEvents = $this->feedbackModel->existsByHashes($hashMap);
+        // 4. Bulk check submission for eligible events
+        $submittedMap = $this->feedbackModel->existsByStudentBulk($studentId, $eligibleEventIds);
 
-        foreach ($hashMap as $eid => $hash) {
-            if ($submittedEvents[$eid] ?? false) {
-                $results[$eid] = 'submitted';
-            } else {
-                $results[$eid] = 'available';
-            }
+        foreach ($eligibleEventIds as $eid) {
+            $results[$eid] = ($submittedMap[$eid] ?? false) ? 'submitted' : 'available';
         }
 
         return $results;
     }
 
     /**
-     * Get feedback data for student page (Pending & Submitted).
-     * 
-     * @param int $studentId
+     * Build the full data needed for the student feedback page.
+     *
+     * Returns ['pending' => [...], 'submitted' => [...]]
+     * Each submitted entry includes '_submitted_rating'.
+     *
+     * @param int   $studentId
      * @param array $applications
      * @return array
      */
@@ -315,33 +337,31 @@ class FeedbackService
         $eventIds = [];
         foreach ($applications as $app) {
             if (!empty($app['symposium_event_id'])) {
-                $eventIds[] = (int)$app['symposium_event_id'];
+                $eventIds[] = (int) $app['symposium_event_id'];
             }
         }
 
         $statuses = $this->getStudentFeedbackStatusesForEvents($studentId, $eventIds);
 
-        $pending = [];
-        $submitted = [];
-        
-        // We also need rating for submitted ones
-        $submittedHashMap = [];
-        foreach ($applications as $app) {
-            $eid = (int)($app['symposium_event_id'] ?? 0);
-            if (!$eid) continue;
+        $pending          = [];
+        $submitted        = [];
+        $submittedEventIds = [];
 
+        foreach ($applications as $app) {
+            $eid    = (int) ($app['symposium_event_id'] ?? 0);
             $status = $statuses[$eid] ?? 'not_finalized';
 
             if ($status === 'available') {
                 $pending[] = $app;
             } elseif ($status === 'submitted') {
-                $submittedHashMap[$eid] = $this->generateHash($studentId, $eid);
+                $submittedEventIds[]   = $eid;
                 $app['_feedback_status'] = 'submitted';
-                $submitted[$eid] = $app; // keyed by eid for rating lookup
+                $submitted[$eid]         = $app;
             }
         }
-        
-        $ratings = $this->feedbackModel->getRatingsByHashes($submittedHashMap);
+
+        // Bulk fetch submitted ratings (one query)
+        $ratings = $this->feedbackModel->getRatingsByStudentBulk($studentId, $submittedEventIds);
         foreach ($ratings as $eid => $rating) {
             if (isset($submitted[$eid])) {
                 $submitted[$eid]['_submitted_rating'] = $rating;
@@ -349,24 +369,46 @@ class FeedbackService
         }
 
         return [
-            'pending' => $pending,
+            'pending'   => $pending,
             'submitted' => array_values($submitted),
         ];
     }
 
+    // =========================================================================
+    // STAFF-FACING FEEDBACK RETRIEVAL
+    // =========================================================================
+
     /**
-     * Get feedback summary for an event.
-     * 
+     * Get identified feedback for an event (for authorized staff).
+     *
+     * Returns: full_name, register_number, department_name,
+     *          academic_year, rating, review.
+     * Does NOT return: email, phone, DOB, password, student_id.
+     *
+     * @param int $eventId
+     * @param int $limit
+     * @param int $offset
+     * @return array
+     */
+    public function getEventFeedback(int $eventId, int $limit = 50, int $offset = 0): array
+    {
+        return $this->feedbackModel->getEventFeedback($eventId, $limit, $offset);
+    }
+
+    /**
+     * Get event feedback summary (response count, avg rating, response rate,
+     * rating distribution, eligible count).
+     *
      * @param int $eventId
      * @return array
      */
     public function getEventFeedbackSummary(int $eventId): array
     {
-        $summary = $this->feedbackModel->getSummaryByEvent($eventId);
+        $summary      = $this->feedbackModel->getSummaryByEvent($eventId);
         $distribution = $this->feedbackModel->getRatingDistribution($eventId);
         $eligibleCount = $this->feedbackModel->getEligibleParticipantCount($eventId);
 
-        $responseRate = 0;
+        $responseRate = 0.0;
         if ($eligibleCount > 0) {
             $responseRate = round(($summary['response_count'] / $eligibleCount) * 100, 1);
         }
@@ -380,22 +422,16 @@ class FeedbackService
         ];
     }
 
-    /**
-     * Get anonymous reviews for an event.
-     * 
-     * @param int $eventId
-     * @param int $limit
-     * @param int $offset
-     * @return array
-     */
-    public function getEventAnonymousReviews(int $eventId, int $limit = 50, int $offset = 0): array
-    {
-        return $this->feedbackModel->getAnonymousReviews($eventId, $limit, $offset);
-    }
+    // =========================================================================
+    // AUTHORIZATION — FIC AND JUDGE
+    // =========================================================================
 
     /**
-     * Check if user can view FIC feedback.
-     * 
+     * Check if a Faculty In-Charge may view feedback for this event.
+     *
+     * Uses existing FacultyAssignmentModel::isAssigned() — checks
+     * faculty_assignments.is_active = 1.
+     *
      * @param int $eventId
      * @param int $userId
      * @return bool
@@ -406,8 +442,10 @@ class FeedbackService
     }
 
     /**
-     * Check if user can view Judge feedback.
-     * 
+     * Check if a Judge may view feedback for this event.
+     *
+     * Uses existing JudgeAssignmentModel::isAssigned().
+     *
      * @param int $eventId
      * @param int $userId
      * @return bool

@@ -227,19 +227,19 @@ if (!empty($event['snapshot_evaluation'])) {
             <div class="card shadow-sm border-0 rounded-4">
                 <div class="card-header bg-white border-bottom py-3 rounded-top-4">
                     <h5 class="mb-0 fw-bold text-primary">
-                        <i class="bi bi-bar-chart-line me-2"></i>Anonymous Feedback Summary
+                        <i class="bi bi-bar-chart-line me-2"></i>Event Feedback Summary
                     </h5>
                 </div>
                 <div class="card-body p-0">
-                    <?php 
+                    <?php
                     $subData = [
-                        'event'   => $event,
-                        'summary' => $feedbackSummary ?? [],
-                        'reviews' => $feedbackReviews ?? [],
-                        'hideHeader' => true,
+                        'event'        => $event,
+                        'summary'      => $feedbackSummary ?? [],
+                        'feedbackList' => $feedbackList ?? [],
+                        'hideHeader'   => true,
                     ];
                     extract($subData);
-                    require dirname(__DIR__) . '/feedback/event_summary.php';
+                    require dirname(__DIR__) . '/feedback/event_detail.php';
                     ?>
                 </div>
             </div>
