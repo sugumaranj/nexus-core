@@ -1,9 +1,9 @@
 <?php
 /**
  * templates/student/feedback_form.php
- * 
+ *
  * @var string $pageTitle
- * @var array $event
+ * @var array  $event
  */
 use App\Core\Session;
 ?>
@@ -22,12 +22,10 @@ use App\Core\Session;
     color: #dee2e6;
     transition: color 0.2s ease-in-out;
 }
-/* When a label is hovered, or when a sibling preceding it in the DOM (which is a higher rating due to flex-direction: row-reverse) is hovered, color it */
 .star-rating-group label:hover,
 .star-rating-group label:hover ~ label {
     color: #ffc107;
 }
-/* When an input is checked, color its label and all siblings following it (which are lower ratings) */
 .star-rating-group input:checked ~ label {
     color: #ffc107;
 }
@@ -39,7 +37,7 @@ use App\Core\Session;
             <i class="bi bi-arrow-left me-1"></i> Back to Feedback
         </a>
         <h2 class="h4 fw-bold text-dark mb-1">Submit Feedback</h2>
-        <p class="text-muted">Share your thoughts on <strong class="text-dark"><?= htmlspecialchars($event['event_name'] ?? '') ?></strong></p>
+        <p class="text-muted">Share your thoughts on <strong class="text-dark"><?= htmlspecialchars($event['event_name'] ?? '', ENT_QUOTES, 'UTF-8') ?></strong></p>
     </div>
 
     <div class="row">
@@ -49,32 +47,40 @@ use App\Core\Session;
                     <h5 class="mb-0 fs-6 fw-bold"><i class="bi bi-star-half me-2"></i>Event Evaluation</h5>
                 </div>
                 <div class="card-body p-4">
-                    
+
+                    <!-- Disclosure notice -->
                     <div class="alert alert-info py-2 d-flex align-items-center gap-2 mb-4">
-                        <i class="bi bi-shield-check fs-4"></i>
-                        <span class="small">Your submission is anonymous.</span>
+                        <i class="bi bi-info-circle fs-5"></i>
+                        <span class="small">
+                            Your feedback will be associated with your student account and may be
+                            reviewed by authorized event staff.
+                        </span>
                     </div>
 
                     <form action="<?= base_url() ?>/student/feedback/submit" method="POST" id="feedbackForm">
-                        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars(Session::get('csrf_token') ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                        <input type="hidden" name="symposium_event_id" value="<?= (int)$event['symposium_event_id'] ?>">
+                        <input type="hidden" name="csrf_token"
+                               value="<?= htmlspecialchars(Session::get('csrf_token') ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <input type="hidden" name="symposium_event_id"
+                               value="<?= (int) $event['symposium_event_id'] ?>">
 
                         <fieldset class="mb-4">
-                            <legend class="form-label fw-bold mb-2 h6">Overall Rating <span class="text-danger">*</span></legend>
+                            <legend class="form-label fw-bold mb-2 h6">
+                                Overall Rating <span class="text-danger">*</span>
+                            </legend>
                             <div class="bg-light p-3 rounded text-center">
                                 <div class="star-rating-group justify-content-center" role="radiogroup" aria-label="Rating">
                                     <input type="radio" name="rating" id="star5" value="5" required>
                                     <label for="star5" class="fs-1 px-1" aria-label="5 stars"><i class="bi bi-star-fill"></i></label>
-                                    
+
                                     <input type="radio" name="rating" id="star4" value="4">
                                     <label for="star4" class="fs-1 px-1" aria-label="4 stars"><i class="bi bi-star-fill"></i></label>
-                                    
+
                                     <input type="radio" name="rating" id="star3" value="3">
                                     <label for="star3" class="fs-1 px-1" aria-label="3 stars"><i class="bi bi-star-fill"></i></label>
-                                    
+
                                     <input type="radio" name="rating" id="star2" value="2">
                                     <label for="star2" class="fs-1 px-1" aria-label="2 stars"><i class="bi bi-star-fill"></i></label>
-                                    
+
                                     <input type="radio" name="rating" id="star1" value="1">
                                     <label for="star1" class="fs-1 px-1" aria-label="1 star"><i class="bi bi-star-fill"></i></label>
                                 </div>
@@ -83,14 +89,16 @@ use App\Core\Session;
                         </fieldset>
 
                         <div class="mb-4">
-                            <label for="reviewText" class="form-label fw-bold h6">Review (Optional)</label>
-                            <textarea name="review" id="reviewText" class="form-control" rows="5" maxlength="2000" placeholder="What did you like? What could be improved?"></textarea>
+                            <label for="reviewText" class="form-label fw-bold h6">Review <span class="text-muted fw-normal">(Optional)</span></label>
+                            <textarea name="review" id="reviewText" class="form-control" rows="5"
+                                      maxlength="2000"
+                                      placeholder="What did you like? What could be improved?"></textarea>
                             <div class="form-text text-end">Max 2000 characters</div>
                         </div>
 
                         <div class="d-grid">
                             <button type="submit" id="submitBtn" class="btn btn-primary py-2 fw-bold">
-                                <i class="bi bi-send-fill me-1"></i> Submit Feedback Anonymously
+                                <i class="bi bi-send-fill me-1"></i> Submit Feedback
                             </button>
                         </div>
                     </form>
@@ -101,7 +109,7 @@ use App\Core\Session;
 </div>
 
 <script>
-document.getElementById('feedbackForm').addEventListener('submit', function() {
+document.getElementById('feedbackForm').addEventListener('submit', function () {
     const btn = document.getElementById('submitBtn');
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Submitting...';

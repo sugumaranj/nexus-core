@@ -2,196 +2,323 @@
 
 declare(strict_types=1);
 
+/**
+ * -------------------------------------------------------------------------
+ * NexusCore
+ * -------------------------------------------------------------------------
+ * File        : FeedbackModel.php
+ * Location    : app/Models/
+ * Description : Data access for event_feedback table.
+ *
+ * Architecture
+ * -------------------------------------------------------------------------
+ * Feedback is IDENTIFIED — each row is associated with a specific student_id.
+ * Authorized staff can see full student identity per the business requirement.
+ *
+ * This model is responsible ONLY for database operations.
+ * All business logic (eligibility, authorization) lives in FeedbackService.
+ *
+ * Project     : NexusCore
+ * Refactored  : 2026-09-23 — removed anonymous hash architecture,
+ *               replaced with student_id direct association.
+ * -------------------------------------------------------------------------
+ */
+
 namespace App\Models;
 
 use PDO;
 
 final class FeedbackModel extends BaseModel
 {
+    // =========================================================================
+    // WRITE OPERATIONS
+    // =========================================================================
+
     /**
-     * Insert new anonymous feedback.
-     * 
-     * @param int $eventId
-     * @param string $respondentHash
-     * @param int $rating
+     * Insert a new identified feedback record.
+     *
+     * @param int         $eventId
+     * @param int         $studentId
+     * @param int         $rating   1–5
      * @param string|null $review
-     * @return int
+     * @return int  Inserted feedback_id, or 0 on failure
      */
-    public function insert(int $eventId, string $respondentHash, int $rating, ?string $review): int
+    public function insertFeedback(int $eventId, int $studentId, int $rating, ?string $review): int
     {
-        $sql = "
+        $sql = '
             INSERT INTO event_feedback
-                (symposium_event_id, respondent_hash, rating, review)
+                (symposium_event_id, student_id, rating, review)
             VALUES
-                (:event_id, :hash, :rating, :review)
-        ";
+                (:event_id, :student_id, :rating, :review)
+        ';
 
         $stmt = $this->db->prepare($sql);
-        $ok = $stmt->execute([
-            'event_id' => $eventId,
-            'hash'     => $respondentHash,
-            'rating'   => $rating,
-            'review'   => $review,
+        $ok   = $stmt->execute([
+            'event_id'   => $eventId,
+            'student_id' => $studentId,
+            'rating'     => $rating,
+            'review'     => $review,
         ]);
 
         return $ok ? (int) $this->db->lastInsertId() : 0;
     }
 
+    // =========================================================================
+    // EXISTENCE / DUPLICATE CHECKS
+    // =========================================================================
+
     /**
-     * Check if a hash already exists for this event.
-     * 
+     * Check if a student has already submitted feedback for this event.
+     *
      * @param int $eventId
-     * @param string $respondentHash
+     * @param int $studentId
      * @return bool
      */
-    public function existsByHash(int $eventId, string $respondentHash): bool
+    public function existsByStudent(int $eventId, int $studentId): bool
     {
-        $sql = "
+        $sql = '
             SELECT 1 FROM event_feedback
             WHERE symposium_event_id = :event_id
-              AND respondent_hash = :hash
+              AND student_id         = :student_id
             LIMIT 1
-        ";
+        ';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'event_id' => $eventId,
-            'hash'     => $respondentHash,
+            'event_id'   => $eventId,
+            'student_id' => $studentId,
         ]);
 
         return (bool) $stmt->fetchColumn();
     }
 
     /**
-     * Get submitted feedback rating by hash (for student view of own feedback).
-     * 
-     * @param int $eventId
-     * @param string $respondentHash
-     * @return int|null
+     * Bulk check whether a student has submitted feedback for multiple events.
+     * Returns a map of [event_id => bool].
+     *
+     * Avoids N+1 queries on the My Registrations / Feedback page.
+     *
+     * @param int   $studentId
+     * @param array $eventIds
+     * @return array<int, bool>
      */
-    public function getRatingByHash(int $eventId, string $respondentHash): ?int
+    public function existsByStudentBulk(int $studentId, array $eventIds): array
     {
+        if (empty($eventIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
         $sql = "
+            SELECT symposium_event_id
+            FROM event_feedback
+            WHERE student_id = ?
+              AND symposium_event_id IN ($placeholders)
+        ";
+
+        $params = array_merge([$studentId], array_values($eventIds));
+        $stmt   = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        $found  = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $result = [];
+        foreach ($eventIds as $eid) {
+            $result[(int) $eid] = in_array((string) $eid, $found, true)
+                                  || in_array($eid, $found, true);
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // STUDENT'S OWN FEEDBACK (for student-facing pages)
+    // =========================================================================
+
+    /**
+     * Get a student's submitted rating for a single event.
+     *
+     * @param int $eventId
+     * @param int $studentId
+     * @return int|null  null if not submitted
+     */
+    public function getStudentRating(int $eventId, int $studentId): ?int
+    {
+        $sql = '
             SELECT rating FROM event_feedback
             WHERE symposium_event_id = :event_id
-              AND respondent_hash = :hash
+              AND student_id         = :student_id
             LIMIT 1
-        ";
+        ';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'event_id' => $eventId,
-            'hash'     => $respondentHash,
+            'event_id'   => $eventId,
+            'student_id' => $studentId,
         ]);
 
         $rating = $stmt->fetchColumn();
-        return $rating !== false ? (int)$rating : null;
+        return $rating !== false ? (int) $rating : null;
     }
 
     /**
-     * Get aggregate summary for an event.
-     * 
-     * @param int $eventId
-     * @return array
+     * Bulk fetch submitted ratings for a student across multiple events.
+     * Returns a map of [event_id => rating].
+     *
+     * @param int   $studentId
+     * @param array $eventIds
+     * @return array<int, int>
      */
-    public function getSummaryByEvent(int $eventId): array
+    public function getRatingsByStudentBulk(int $studentId, array $eventIds): array
     {
-        $sql = "
-            SELECT 
-                COUNT(*) AS response_count, 
-                AVG(rating) AS avg_rating 
-            FROM event_feedback 
-            WHERE symposium_event_id = :event_id
-        ";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['event_id' => $eventId]);
-        
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        return [
-            'response_count' => (int) ($result['response_count'] ?? 0),
-            'avg_rating'     => (float) ($result['avg_rating'] ?? 0.0),
-        ];
-    }
-
-    /**
-     * Get rating distribution.
-     * 
-     * @param int $eventId
-     * @return array
-     */
-    public function getRatingDistribution(int $eventId): array
-    {
-        $sql = "
-            SELECT rating, COUNT(*) AS cnt 
-            FROM event_feedback 
-            WHERE symposium_event_id = :event_id 
-            GROUP BY rating
-        ";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(['event_id' => $eventId]);
-        
-        $distribution = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $distribution[(int)$row['rating']] = (int)$row['cnt'];
+        if (empty($eventIds)) {
+            return [];
         }
-        
-        return $distribution;
+
+        $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+        $sql = "
+            SELECT symposium_event_id, rating
+            FROM event_feedback
+            WHERE student_id = ?
+              AND symposium_event_id IN ($placeholders)
+        ";
+
+        $params = array_merge([$studentId], array_values($eventIds));
+        $stmt   = $this->db->prepare($sql);
+        $stmt->execute($params);
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[(int) $row['symposium_event_id']] = (int) $row['rating'];
+        }
+
+        return $result;
     }
 
+    // =========================================================================
+    // STAFF-FACING REVIEW RETRIEVAL (identified — with student info)
+    // =========================================================================
+
     /**
-     * Get anonymous reviews. No identity columns are selected.
-     * 
+     * Get paginated feedback for an event, with full student identity.
+     *
+     * Only returns: name, register_number, department_name, academic_year,
+     * rating, review. No email, phone, DOB, password or other PII.
+     *
      * @param int $eventId
      * @param int $limit
      * @param int $offset
      * @return array
      */
-    public function getAnonymousReviews(int $eventId, int $limit = 50, int $offset = 0): array
+    public function getEventFeedback(int $eventId, int $limit = 50, int $offset = 0): array
     {
-        $sql = "
-            SELECT rating, review 
-            FROM event_feedback 
-            WHERE symposium_event_id = :event_id 
-              AND review IS NOT NULL 
-              AND TRIM(review) != ''
-            ORDER BY feedback_id ASC 
+        $sql = '
+            SELECT
+                s.full_name,
+                s.register_number,
+                d.department_name,
+                s.academic_year,
+                ef.rating,
+                ef.review,
+                ef.created_at
+            FROM event_feedback ef
+            INNER JOIN students    s ON s.student_id    = ef.student_id
+            INNER JOIN departments d ON d.department_id = s.department_id
+            WHERE ef.symposium_event_id = :event_id
+            ORDER BY ef.feedback_id ASC
             LIMIT :limit OFFSET :offset
-        ";
+        ';
 
         $stmt = $this->db->prepare($sql);
         $stmt->bindValue(':event_id', $eventId, PDO::PARAM_INT);
-        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
-        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->bindValue(':limit',    $limit,   PDO::PARAM_INT);
+        $stmt->bindValue(':offset',   $offset,  PDO::PARAM_INT);
         $stmt->execute();
-        
+
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    // =========================================================================
+    // AGGREGATE / SUMMARY QUERIES
+    // =========================================================================
+
     /**
-     * Get eligible participant count.
-     * 
+     * Get aggregate summary: total responses and average rating.
+     *
+     * @param int $eventId
+     * @return array{response_count: int, avg_rating: float}
+     */
+    public function getSummaryByEvent(int $eventId): array
+    {
+        $sql = '
+            SELECT
+                COUNT(*) AS response_count,
+                AVG(rating) AS avg_rating
+            FROM event_feedback
+            WHERE symposium_event_id = :event_id
+        ';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['event_id' => $eventId]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return [
+            'response_count' => (int)   ($result['response_count'] ?? 0),
+            'avg_rating'     => (float) ($result['avg_rating']     ?? 0.0),
+        ];
+    }
+
+    /**
+     * Get rating distribution (1-star through 5-star counts).
+     *
+     * @param int $eventId
+     * @return array<int, int>  [1 => n, 2 => n, 3 => n, 4 => n, 5 => n]
+     */
+    public function getRatingDistribution(int $eventId): array
+    {
+        $sql = '
+            SELECT rating, COUNT(*) AS cnt
+            FROM event_feedback
+            WHERE symposium_event_id = :event_id
+            GROUP BY rating
+        ';
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['event_id' => $eventId]);
+
+        $distribution = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $distribution[(int) $row['rating']] = (int) $row['cnt'];
+        }
+
+        return $distribution;
+    }
+
+    /**
+     * Count eligible participants (Present OR Late) from the finalized session.
+     *
+     * Denominator for response rate calculation.
+     *
      * @param int $eventId
      * @return int
      */
     public function getEligibleParticipantCount(int $eventId): int
     {
-        $sql = "
+        $sql = '
             SELECT COUNT(DISTINCT ar.student_id) AS eligible_count
             FROM attendance_records ar
             INNER JOIN attendance_sessions ats ON ats.session_id = ar.session_id
-            WHERE ar.symposium_event_id = :event_id
+            WHERE ar.symposium_event_id  = :event_id
               AND ats.symposium_event_id = :event_id2
-              AND ats.status = 'Closed'
-              AND ar.attendance_status IN ('Present', 'Late')
+              AND ats.status             = \'Closed\'
+              AND ar.attendance_status   IN (\'Present\', \'Late\')
               AND ats.session_id = (
                   SELECT session_id FROM attendance_sessions
-                  WHERE symposium_event_id = :event_id3 AND status = 'Closed'
-                  ORDER BY closed_at DESC LIMIT 1
+                  WHERE symposium_event_id = :event_id3
+                    AND status = \'Closed\'
+                  ORDER BY closed_at DESC
+                  LIMIT 1
               )
-        ";
+        ';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
@@ -199,13 +326,48 @@ final class FeedbackModel extends BaseModel
             'event_id2' => $eventId,
             'event_id3' => $eventId,
         ]);
-        
+
         return (int) $stmt->fetchColumn();
     }
 
     /**
-     * Get student attendance status for a specific session.
-     * 
+     * Get response counts for multiple events (for the index listing page).
+     *
+     * @param array $eventIds
+     * @return array<int, int>  [event_id => response_count]
+     */
+    public function getResponseCountForEvents(array $eventIds): array
+    {
+        if (empty($eventIds)) {
+            return [];
+        }
+
+        $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
+        $sql = "
+            SELECT symposium_event_id, COUNT(*) AS response_count
+            FROM event_feedback
+            WHERE symposium_event_id IN ($placeholders)
+            GROUP BY symposium_event_id
+        ";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(array_values($eventIds));
+
+        $result = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $result[(int) $row['symposium_event_id']] = (int) $row['response_count'];
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // ATTENDANCE HELPERS (used by FeedbackService — no change from previous)
+    // =========================================================================
+
+    /**
+     * Get a student's attendance status for a specific session.
+     *
      * @param int $studentId
      * @param int $eventId
      * @param int $sessionId
@@ -213,14 +375,14 @@ final class FeedbackModel extends BaseModel
      */
     public function getStudentAttendanceStatus(int $studentId, int $eventId, int $sessionId): ?string
     {
-        $sql = "
-            SELECT attendance_status 
-            FROM attendance_records 
-            WHERE student_id = :student_id 
-              AND symposium_event_id = :event_id 
-              AND session_id = :session_id
+        $sql = '
+            SELECT attendance_status
+            FROM attendance_records
+            WHERE student_id          = :student_id
+              AND symposium_event_id  = :event_id
+              AND session_id          = :session_id
             LIMIT 1
-        ";
+        ';
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
@@ -234,11 +396,12 @@ final class FeedbackModel extends BaseModel
     }
 
     /**
-     * Get student attendance statuses for multiple sessions (bulk).
-     * 
-     * @param int $studentId
+     * Bulk fetch attendance statuses for a student across multiple sessions.
+     * Returns a map of [session_id => attendance_status].
+     *
+     * @param int   $studentId
      * @param array $sessionIds
-     * @return array Map of [session_id => attendance_status]
+     * @return array<int, string>
      */
     public function getStudentAttendanceStatusesForSessions(int $studentId, array $sessionIds): array
     {
@@ -248,123 +411,19 @@ final class FeedbackModel extends BaseModel
 
         $placeholders = implode(',', array_fill(0, count($sessionIds), '?'));
         $sql = "
-            SELECT session_id, attendance_status 
-            FROM attendance_records 
-            WHERE student_id = ? 
+            SELECT session_id, attendance_status
+            FROM attendance_records
+            WHERE student_id = ?
               AND session_id IN ($placeholders)
         ";
 
         $params = array_merge([$studentId], array_values($sessionIds));
-        
-        $stmt = $this->db->prepare($sql);
+        $stmt   = $this->db->prepare($sql);
         $stmt->execute($params);
 
         $result = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $result[(int)$row['session_id']] = $row['attendance_status'];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Bulk check existence of multiple hashes.
-
-     * 
-     * @param array $hashMap Map of [symposium_event_id => respondent_hash]
-     * @return array Map of [symposium_event_id => bool (true if exists)]
-     */
-    public function existsByHashes(array $hashMap): array
-    {
-        if (empty($hashMap)) {
-            return [];
-        }
-
-        // We build a condition like (symposium_event_id = ? AND respondent_hash = ?) OR ...
-        $conditions = [];
-        $params = [];
-        $i = 0;
-        foreach ($hashMap as $eventId => $hash) {
-            $conditions[] = "(symposium_event_id = :e{$i} AND respondent_hash = :h{$i})";
-            $params[":e{$i}"] = $eventId;
-            $params[":h{$i}"] = $hash;
-            $i++;
-        }
-
-        $sql = "SELECT symposium_event_id FROM event_feedback WHERE " . implode(' OR ', $conditions);
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-
-        $existingEvents = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-        $result = [];
-        foreach ($hashMap as $eventId => $hash) {
-            $result[$eventId] = in_array((string)$eventId, $existingEvents, true) || in_array($eventId, $existingEvents, true);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get ratings for multiple hashes in bulk.
-     * 
-     * @param array $hashMap Map of [symposium_event_id => respondent_hash]
-     * @return array Map of [symposium_event_id => rating]
-     */
-    public function getRatingsByHashes(array $hashMap): array
-    {
-        if (empty($hashMap)) {
-            return [];
-        }
-
-        $conditions = [];
-        $params = [];
-        $i = 0;
-        foreach ($hashMap as $eventId => $hash) {
-            $conditions[] = "(symposium_event_id = :e{$i} AND respondent_hash = :h{$i})";
-            $params[":e{$i}"] = $eventId;
-            $params[":h{$i}"] = $hash;
-            $i++;
-        }
-
-        $sql = "SELECT symposium_event_id, rating FROM event_feedback WHERE " . implode(' OR ', $conditions);
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
-
-        $result = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $result[(int)$row['symposium_event_id']] = (int)$row['rating'];
-        }
-
-        return $result;
-    }
-
-    /**
-     * Get response counts for multiple events in bulk.
-     * 
-     * @param array $eventIds
-     * @return array Map of [symposium_event_id => response_count]
-     */
-    public function getResponseCountForEvents(array $eventIds): array
-    {
-        if (empty($eventIds)) {
-            return [];
-        }
-
-        $placeholders = implode(',', array_fill(0, count($eventIds), '?'));
-        $sql = "
-            SELECT symposium_event_id, COUNT(*) AS response_count 
-            FROM event_feedback 
-            WHERE symposium_event_id IN ($placeholders)
-            GROUP BY symposium_event_id
-        ";
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute(array_values($eventIds));
-
-        $result = [];
-        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $result[(int)$row['symposium_event_id']] = (int)$row['response_count'];
+            $result[(int) $row['session_id']] = $row['attendance_status'];
         }
 
         return $result;
