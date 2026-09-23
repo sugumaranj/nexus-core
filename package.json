@@ -17,6 +17,10 @@
     "bootstrap": "^5.3.8",
     "bootstrap-icons": "^1.13.1",
     "chart.js": "^4.5.1",
-    "html2canvas": "^1.4.1"
+    "html2canvas": "^1.4.1",
+    "marked": "^18.0.13",
+    "md-to-pdf": "^5.2.5",
+    "pako": "^3.0.2",
+    "puppeteer-core": "^25.11.0"
   }
 }

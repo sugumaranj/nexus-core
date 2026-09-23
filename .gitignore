@@ -55,6 +55,7 @@ desktop.ini
 scratch*.php
 scratch*.sql
 scratch*.pdf
+
 check.php
 check_db.php
 test.php
@@ -65,3 +66,6 @@ test_vector.pdf
 /storage/certificate_templates/*
 !/storage/certificate_templates/.gitkeep
 
+# Generated Reports
+NexusCore_Technical_Report.md
+NexusCore_Project_Report.pdf
