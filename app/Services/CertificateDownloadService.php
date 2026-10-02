@@ -25,6 +25,7 @@ namespace App\Services;
 
 use App\Models\GeneratedCertificateModel;
 use App\Models\AuditLogModel;
+use App\Models\TeamMemberModel;
 use RuntimeException;
 use ZipArchive;
 
@@ -192,5 +193,111 @@ final class CertificateDownloadService
         http_response_code(404);
         echo '<h1>404 — Not Found</h1><p>' . htmlspecialchars($message) . '</p>';
         exit;
+    }
+
+    /**
+     * -------------------------------------------------------------------------
+     * Stream a certificate PDF to a student browser (inline or attachment).
+     *
+     * SECURITY — Ownership enforcement:
+     *   If recipient_student_id IS NOT NULL:
+     *     The authenticated student_id must equal recipient_student_id.
+     *   If recipient_student_id IS NULL (per_team certificate):
+     *     The authenticated student must be an active member of the application_id team.
+     *
+     * DOWNLOADABILITY:
+     *   Only certificates with generation_status = 'Generated' AND is_current = 1
+     *   AND file_path != '' AND physical file exists may be served.
+     *   Any other state returns HTTP 404.
+     *
+     * @param int  $certId                Certificate ID from URL param (lookup key only).
+     * @param int  $authenticatedStudentId Session student_id (never from URL).
+     * @param bool $inline                 true = Content-Disposition: inline; false = attachment.
+     * @return never                       Streams the PDF or terminates with HTTP error.
+     * -------------------------------------------------------------------------
+     */
+    public function streamSingleForStudent(int $certId, int $authenticatedStudentId, bool $inline = true): never
+    {
+        $certModel = new GeneratedCertificateModel();
+        $cert      = $certModel->findById($certId);
+
+        if (!$cert) {
+            http_response_code(404);
+            exit('Certificate not found.');
+        }
+
+        // ── Strict downloadability check ────────────────────────────────────
+        if (
+            $cert['generation_status'] !== 'Generated'
+            || (int)($cert['is_current'] ?? 0) !== 1
+            || empty($cert['file_path'])
+        ) {
+            http_response_code(404);
+            exit('Certificate is not available for download.');
+        }
+
+        // ── Path safety ────────────────────────────────────────────────────
+        $storageRoot = realpath(__DIR__ . '/../../storage/certificates');
+        $absPath     = realpath(__DIR__ . '/../../' . ltrim($cert['file_path'], '/'));
+
+        if (!$absPath || !$storageRoot || !str_starts_with($absPath, $storageRoot) || !is_file($absPath)) {
+            http_response_code(404);
+            exit('Certificate file not found.');
+        }
+
+        // ── Ownership check ────────────────────────────────────────────────
+        $recipientStudentId = isset($cert['recipient_student_id'])
+            ? (int)$cert['recipient_student_id']
+            : null;
+
+        if ($recipientStudentId !== null) {
+            // Direct ownership
+            if ($recipientStudentId !== $authenticatedStudentId) {
+                http_response_code(403);
+                exit('Access denied.');
+            }
+        } else {
+            // Per-team certificate: verify team membership
+            $applicationId = (int)$cert['application_id'];
+            if (!$this->isStudentTeamMember($applicationId, $authenticatedStudentId)) {
+                http_response_code(403);
+                exit('Access denied.');
+            }
+        }
+
+        // ── Stream PDF ─────────────────────────────────────────────────────
+        $filename    = 'certificate_' . ($cert['certificate_number'] ?? $certId) . '.pdf';
+        $disposition = $inline ? 'inline' : 'attachment';
+
+        header('Content-Type: application/pdf');
+        header('Content-Disposition: ' . $disposition . '; filename="' . $filename . '"');
+        header('Content-Length: ' . filesize($absPath));
+        header('Cache-Control: private, no-cache');
+        header('X-Content-Type-Options: nosniff');
+
+        readfile($absPath);
+        exit;
+    }
+
+    /**
+     * Verify that a student is an active member of the team associated with an application.
+     *
+     * @param int $applicationId
+     * @param int $studentId
+     * @return bool
+     */
+    private function isStudentTeamMember(int $applicationId, int $studentId): bool
+    {
+        $db   = \App\Database\Database::getConnection();
+        $stmt = $db->prepare("
+            SELECT 1
+            FROM team_members tm
+            INNER JOIN teams t ON t.team_id = tm.team_id
+            WHERE t.application_id = :app_id
+              AND tm.student_id    = :student_id
+            LIMIT 1
+        ");
+        $stmt->execute(['app_id' => $applicationId, 'student_id' => $studentId]);
+        return (bool) $stmt->fetchColumn();
     }
 }

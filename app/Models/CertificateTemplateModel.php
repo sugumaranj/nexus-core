@@ -29,7 +29,7 @@ final class CertificateTemplateModel
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function getAll(bool $activeOnly = false, bool $includeArchived = false): array
+    public function getAll(bool $activeOnly = false, bool $includeArchived = false, ?string $certType = null): array
     {
         $sql = "
             SELECT t.*, v.version_id, v.version_number, v.field_config, v.locked
@@ -42,18 +42,51 @@ final class CertificateTemplateModel
                 )
             WHERE 1=1
         ";
-        
+
+        $params = [];
+
         if (!$includeArchived) {
             $sql .= " AND t.is_archived = 0";
         }
-        
+
         if ($activeOnly) {
             $sql .= " AND t.is_active = 1";
         }
+
+        if ($certType !== null) {
+            $sql .= " AND certificate_type = :cert_type";
+            $params['cert_type'] = $certType;
+        }
+
         $sql .= " ORDER BY t.template_name ASC";
-        
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute();
+        $stmt->execute($params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Return all templates matching the given certificate_type.
+     *
+     * @param  string $certType  e.g. 'Winner', 'Participant', 'Appreciation'
+     * @return array
+     */
+    public function getByType(string $certType): array
+    {
+        $sql = "
+            SELECT t.*, v.version_id, v.version_number, v.field_config, v.locked
+            FROM certificate_templates t
+            LEFT JOIN certificate_template_versions v ON v.certificate_template_id = t.certificate_template_id
+                AND v.version_number = (
+                    SELECT MAX(version_number)
+                    FROM certificate_template_versions
+                    WHERE certificate_template_id = t.certificate_template_id
+                )
+            WHERE t.certificate_type = :cert_type
+            ORDER BY t.template_name ASC
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['cert_type' => $certType]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -64,27 +97,28 @@ final class CertificateTemplateModel
                 template_name, description, file_path, file_hash, 
                 page_width_pt, page_height_pt, page_orientation, 
                 rank_display_mode, team_cert_mode, is_active, 
-                is_archived, created_by, created_at, updated_at
+                is_archived, created_by, certificate_type, created_at, updated_at
             ) VALUES (
                 :template_name, :description, :file_path, :file_hash,
                 :page_width_pt, :page_height_pt, :page_orientation,
                 :rank_display_mode, :team_cert_mode, :is_active,
-                0, :created_by, NOW(), NOW()
+                0, :created_by, :certificate_type, NOW(), NOW()
             )
         ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'template_name' => $data['template_name'],
-            'description' => $data['description'] ?? null,
-            'file_path' => $data['file_path'] ?? null,
-            'file_hash' => $data['file_hash'] ?? null,
-            'page_width_pt' => $data['page_width_pt'] ?? null,
-            'page_height_pt' => $data['page_height_pt'] ?? null,
+            'template_name'    => $data['template_name'],
+            'description'      => $data['description'] ?? null,
+            'file_path'        => $data['file_path'] ?? null,
+            'file_hash'        => $data['file_hash'] ?? null,
+            'page_width_pt'    => $data['page_width_pt'] ?? null,
+            'page_height_pt'   => $data['page_height_pt'] ?? null,
             'page_orientation' => $data['page_orientation'] ?? null,
-            'rank_display_mode' => $data['rank_display_mode'] ?? 'none',
-            'team_cert_mode' => $data['team_cert_mode'] ?? null,
-            'is_active' => $data['is_active'] ?? 1,
-            'created_by' => $data['created_by'] ?? null
+            'rank_display_mode'=> $data['rank_display_mode'] ?? 'none',
+            'team_cert_mode'   => $data['team_cert_mode'] ?? null,
+            'is_active'        => $data['is_active'] ?? 1,
+            'created_by'       => $data['created_by'] ?? null,
+            'certificate_type' => $data['certificate_type'] ?? 'Winner',
         ]);
         return (int)$this->db->lastInsertId();
     }
@@ -97,16 +131,18 @@ final class CertificateTemplateModel
                 description = :description,
                 rank_display_mode = :rank_display_mode,
                 team_cert_mode = :team_cert_mode,
+                certificate_type = :certificate_type,
                 updated_at = NOW()
             WHERE certificate_template_id = :id
         ";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
-            'template_name' => $data['template_name'],
-            'description' => $data['description'] ?? null,
-            'rank_display_mode' => $data['rank_display_mode'] ?? 'none',
-            'team_cert_mode' => $data['team_cert_mode'] ?? null,
-            'id' => $id
+            'template_name'    => $data['template_name'],
+            'description'      => $data['description'] ?? null,
+            'rank_display_mode'=> $data['rank_display_mode'] ?? 'none',
+            'team_cert_mode'   => $data['team_cert_mode'] ?? null,
+            'certificate_type' => $data['certificate_type'] ?? 'Winner',
+            'id'               => $id,
         ]);
     }
 
@@ -173,10 +209,10 @@ final class CertificateTemplateModel
         ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'template_id' => $templateId,
+            'template_id'    => $templateId,
             'version_number' => $versionNumber,
-            'field_config' => json_encode($fieldConfig),
-            'created_by' => $userId
+            'field_config'   => json_encode($fieldConfig),
+            'created_by'     => $userId
         ]);
         return (int)$this->db->lastInsertId();
     }
@@ -217,26 +253,44 @@ final class CertificateTemplateModel
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function getEventConfig(int $symposiumEventId): array|false
+    /**
+     * Get event config for a specific symposium event and certificate type.
+     *
+     * @param  int    $symposiumEventId
+     * @param  string $certType
+     * @return array|false
+     */
+    public function getEventConfig(int $symposiumEventId, string $certType): array|false
     {
-        $sql = "SELECT * FROM certificate_event_config WHERE symposium_event_id = :id LIMIT 1";
+        $sql = "SELECT * FROM certificate_event_config WHERE symposium_event_id = :eid AND certificate_type = :cert_type LIMIT 1";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['id' => $symposiumEventId]);
+        $stmt->execute(['eid' => $symposiumEventId, 'cert_type' => $certType]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public function setEventConfig(int $symposiumEventId, int $templateId, int $userId): bool
+    /**
+     * Upsert event config for a symposium event + certificate type combination.
+     * Relies on unique key uq_cec_event_type (symposium_event_id, certificate_type).
+     *
+     * @param  int    $symposiumEventId
+     * @param  int    $templateId
+     * @param  int    $userId
+     * @param  string $certType
+     * @return bool
+     */
+    public function setEventConfig(int $symposiumEventId, int $templateId, int $userId, string $certType): bool
     {
         $sql = "
-            INSERT INTO certificate_event_config (symposium_event_id, template_id, created_by, created_at)
-            VALUES (:event_id, :template_id, :created_by, NOW())
+            INSERT INTO certificate_event_config (symposium_event_id, template_id, certificate_type, created_by, created_at)
+            VALUES (:event_id, :template_id, :certificate_type, :created_by, NOW())
             ON DUPLICATE KEY UPDATE template_id = :template_id
         ";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute([
-            'event_id' => $symposiumEventId,
-            'template_id' => $templateId,
-            'created_by' => $userId
+            'event_id'         => $symposiumEventId,
+            'template_id'      => $templateId,
+            'certificate_type' => $certType,
+            'created_by'       => $userId,
         ]);
     }
 
@@ -247,15 +301,21 @@ final class CertificateTemplateModel
         return $stmt->execute(['id' => $symposiumEventId]);
     }
 
-    public function getSystemDefaultTemplate(): array|false
+    /**
+     * Retrieve the system-default (most recently updated active) template for a given type.
+     *
+     * @param  string $certType
+     * @return array|false
+     */
+    public function getSystemDefaultTemplate(string $certType): array|false
     {
         $sql = "
             SELECT * FROM certificate_templates 
-            WHERE is_active = 1 AND is_archived = 0 
+            WHERE is_active = 1 AND is_archived = 0 AND certificate_type = :cert_type
             ORDER BY updated_at DESC LIMIT 1
         ";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute();
+        $stmt->execute(['cert_type' => $certType]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 }

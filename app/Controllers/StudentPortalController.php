@@ -114,6 +114,11 @@ class StudentPortalController extends BaseController
         $myRegistrationsCount  = $activeApplicationsCount;
         $activeSymposiumsCount = count($activeSymposiums);
 
+        // Certificate count for dashboard widget
+        $certModel = new \App\Models\GeneratedCertificateModel();
+        $myCertificates = $certModel->getByStudent((int)$student['student_id']);
+        $myCertificatesCount = count($myCertificates);
+
         // Important Notices — upcoming venue-assigned events in the next 7 days
         $todayTs  = strtotime(date('Y-m-d'));
         $limitTs  = strtotime('+7 days');
@@ -141,6 +146,7 @@ class StudentPortalController extends BaseController
             'recentApplications'   => $recentApplications,
             'myRegistrationsCount' => $myRegistrationsCount,
             'activeSymposiumsCount'=> $activeSymposiumsCount,
+            'myCertificatesCount'  => $myCertificatesCount,
             'importantNotices'     => $importantNotices,
         ], 'student');
     }

@@ -107,7 +107,7 @@ $error   = Session::getFlash('error');
 
                     <div class="row g-3">
 
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <a href="<?= base_url() ?>/student/my-registrations" class="text-decoration-none">
                                 <div class="card bg-light border-0 text-center py-4 h-100 table-hover transition-all">
                                     <div class="fs-1 text-primary">
@@ -119,7 +119,7 @@ $error   = Session::getFlash('error');
                             </a>
                         </div>
 
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <a href="<?= base_url() ?>/student/symposiums" class="text-decoration-none">
                                 <div class="card bg-light border-0 text-center py-4 h-100 table-hover transition-all">
                                     <div class="fs-1 text-warning">
@@ -131,6 +131,17 @@ $error   = Session::getFlash('error');
                             </a>
                         </div>
 
+                        <div class="col-md-4">
+                            <a href="<?= base_url() ?>/student/certificates" class="text-decoration-none">
+                                <div class="card bg-light border-0 text-center py-4 h-100 table-hover transition-all">
+                                    <div class="fs-1 text-success">
+                                        <i class="bi bi-award"></i>
+                                    </div>
+                                    <div class="fw-semibold mt-2 text-dark">My Certificates</div>
+                                    <div class="badge bg-success rounded-pill mt-2 px-3"><?= (int)($myCertificatesCount ?? 0) ?></div>
+                                </div>
+                            </a>
+                        </div>
 
                     </div>
 

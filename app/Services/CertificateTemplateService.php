@@ -21,6 +21,7 @@ class CertificateTemplateService
         'event_name', 'symposium_name', 'held_on', 'academic_year',
         'rank_label', 'rank_check_1', 'rank_check_2', 'rank_check_3',
         'gender_check_male', 'gender_check_female',
+        'principal_name', 'hod_cs_name', 'hod_bca_name',
         // QR code verification field — square, contains public verification URL
         'qr_code',
         // Legacy — kept for backward-compat loading; ignored during validation
@@ -269,11 +270,13 @@ class CertificateTemplateService
         $fieldConfig = json_decode($activeVersion['field_config'], true) ?? [];
         $fieldKeys = array_column($fieldConfig, 'field_key');
         
-        $pageWidth = (float)($template['page_width_pt'] ?? 0);
-        $pageHeight = (float)($template['page_height_pt'] ?? 0);
+        $pageWidth  = (float) ($template['page_width_pt']  ?? 0);
+        $pageHeight = (float) ($template['page_height_pt'] ?? 0);
 
-        // Required field validation
-        $requiredAlways = ['participant_name'];
+        // ── Required for ALL certificate types (Winner and Participant) ───────
+        // qr_code is mandatory — every production certificate must have a
+        // public verification QR. A template cannot be activated without it.
+        $requiredAlways = ['participant_name', 'qr_code'];
         $missing = [];
 
         foreach ($requiredAlways as $req) {
@@ -282,18 +285,25 @@ class CertificateTemplateService
             }
         }
 
-        // Rank configuration validation
-        $rankMode = $template['rank_display_mode'] ?? 'none';
-        if ($rankMode === 'checkboxes') {
-            $reqRank = ['rank_check_1', 'rank_check_2', 'rank_check_3'];
-            foreach ($reqRank as $req) {
-                if (!in_array($req, $fieldKeys, true)) {
-                    $missing[] = $req;
+        // ── Rank field requirements — Winner templates only ────────────────
+        // Participant templates do NOT require rank fields.
+        // If a Participant template has rank fields they are silently allowed
+        // but will not display a rank value (rank_position = null in data).
+        $certType = $template['certificate_type'] ?? 'Winner';
+
+        if ($certType === 'Winner') {
+            $rankMode = $template['rank_display_mode'] ?? 'none';
+            if ($rankMode === 'checkboxes') {
+                $reqRank = ['rank_check_1', 'rank_check_2', 'rank_check_3'];
+                foreach ($reqRank as $req) {
+                    if (!in_array($req, $fieldKeys, true)) {
+                        $missing[] = $req;
+                    }
                 }
-            }
-        } elseif ($rankMode === 'label') {
-            if (!in_array('rank_label', $fieldKeys, true)) {
-                $missing[] = 'rank_label';
+            } elseif ($rankMode === 'label') {
+                if (!in_array('rank_label', $fieldKeys, true)) {
+                    $missing[] = 'rank_label';
+                }
             }
         }
 
@@ -477,16 +487,35 @@ class CertificateTemplateService
         return ['success' => true, 'version_id' => $versionId];
     }
 
-    public function resolveTemplate(int $symposiumEventId, ?int $symposiumId = null): array|false
+    /**
+     * -------------------------------------------------------------------------
+     * Resolve the certificate template to use for a given event and type.
+     *
+     * Resolution order:
+     *   1. certificate_event_config for (symposium_event_id, certificate_type)
+     *   2. System default template filtered by certificate_type
+     *
+     * Never cross-resolves types: a Winner template is never returned for a
+     * Participant request and vice versa.
+     *
+     * @param int    $symposiumEventId
+     * @param string $certificateType  'Winner' | 'Participant'
+     * @return array|false  Template row or false if none found
+     * -------------------------------------------------------------------------
+     */
+    public function resolveTemplate(int $symposiumEventId, string $certificateType = 'Winner'): array|false
     {
-        $eventConfig = $this->templateModel->getEventConfig($symposiumEventId);
+        // 1. Event-specific config for this type
+        $eventConfig = $this->templateModel->getEventConfig($symposiumEventId, $certificateType);
         if ($eventConfig && $eventConfig['template_id']) {
-            $template = $this->templateModel->findById((int)$eventConfig['template_id']);
-            if ($template) {
+            $template = $this->templateModel->findById((int) $eventConfig['template_id']);
+            if ($template && ($template['certificate_type'] ?? '') === $certificateType) {
                 return $template;
             }
         }
 
-        return $this->templateModel->getSystemDefaultTemplate();
+        // 2. System default for this specific certificate type
+        return $this->templateModel->getSystemDefaultTemplate($certificateType);
     }
 }
+

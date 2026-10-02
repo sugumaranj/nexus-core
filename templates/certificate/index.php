@@ -58,6 +58,12 @@ declare(strict_types=1);
                                 <?php if (!empty($template['team_cert_mode'])): ?>
                                     <span class="badge bg-warning text-dark">Team: <?= htmlspecialchars($template['team_cert_mode'], ENT_QUOTES, 'UTF-8') ?></span>
                                 <?php endif; ?>
+
+                                <?php if (($template['certificate_type'] ?? 'Winner') === 'Participant'): ?>
+                                    <span class="badge bg-primary ms-1"><i class="bi bi-person-check-fill me-1"></i>Participant</span>
+                                <?php else: ?>
+                                    <span class="badge bg-warning text-dark ms-1"><i class="bi bi-trophy-fill me-1"></i>Winner</span>
+                                <?php endif; ?>
                             </div>
 
                             <p class="card-text small text-muted mb-1">
@@ -75,7 +81,7 @@ declare(strict_types=1);
                                 <a href="<?= base_url('/certificates/preview?template_id=' . urlencode((string)$template['certificate_template_id'])) ?>" class="btn btn-sm btn-light border">
                                     <i class="bi bi-eye"></i> Preview
                                 </a>
-                                <a href="<?= base_url('/certificates/generate?template_id=' . urlencode((string)$template['certificate_template_id'])) ?>" class="btn btn-sm btn-success">
+                                <a href="<?= base_url('/certificates/generate?template_id=' . $template['certificate_template_id']) ?>" class="btn btn-sm btn-success">
                                     <i class="bi bi-play-circle"></i> Generate
                                 </a>
                             </div>

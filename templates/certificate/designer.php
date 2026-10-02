@@ -17,6 +17,9 @@ $paletteLabels = [
     'rank_check_3'       => '3rd Prize Tick',
     'gender_check_male'  => 'Male Tick',
     'gender_check_female'=> 'Female Tick',
+    'principal_name'     => 'Principal Name',
+    'hod_cs_name'        => 'HOD CS Name',
+    'hod_bca_name'       => 'HOD BCA Name',
 ];
 ?>
 <div class="container-fluid py-2">
@@ -29,6 +32,7 @@ $paletteLabels = [
         <div class="d-flex align-items-center flex-wrap gap-2">
             <a href="<?= base_url('/certificates') ?>" class="btn btn-sm btn-secondary shadow-sm"><i class="bi bi-x"></i> Cancel</a>
             <div class="d-flex align-items-center gap-1">
+                <?php if (($template['certificate_type'] ?? 'Winner') === 'Winner'): ?>
                 <div>
                     <div style="font-size:9px;color:#888;line-height:1.2">Preview Rank</div>
                     <select id="preview-rank" class="form-select form-select-sm" style="width:120px">
@@ -38,6 +42,9 @@ $paletteLabels = [
                         <option value="4">Participation</option>
                     </select>
                 </div>
+                <?php else: ?>
+                <input type="hidden" id="preview-rank" value="4">
+                <?php endif; ?>
                 <div>
                     <div style="font-size:9px;color:#888;line-height:1.2">Preview Gender</div>
                     <select id="preview-gender" class="form-select form-select-sm" style="width:100px">
@@ -75,6 +82,7 @@ $paletteLabels = [
                 </div>
                 <div class="card-body p-2" id="field-palette">
                     <?php
+                    $certType = $template['certificate_type'] ?? 'Winner';
                     $textFields = [
                         'participant_name' => 'Participant Name',
                         'register_number'  => 'Register Number',
@@ -83,13 +91,16 @@ $paletteLabels = [
                         'symposium_name'   => 'Symposium Name',
                         'held_on'          => 'Held On',
                         'academic_year'    => 'Academic Year (Roman)',
-                        'rank_label'       => 'Rank Label',
                     ];
-                    $rankFields = [
+                    // Rank label is only for Winner templates
+                    if ($certType === 'Winner') {
+                        $textFields['rank_label'] = 'Rank Label';
+                    }
+                    $rankFields = ($certType === 'Winner') ? [
                         'rank_check_1' => '1st Prize Tick',
                         'rank_check_2' => '2nd Prize Tick',
                         'rank_check_3' => '3rd Prize Tick',
-                    ];
+                    ] : [];
                     $genderFields = [
                         'gender_check_male'   => 'Male Tick',
                         'gender_check_female' => 'Female Tick',
@@ -104,6 +115,7 @@ $paletteLabels = [
                             <i class="bi bi-input-cursor-text"></i> <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
                         </div>
                     <?php endforeach; ?>
+                    <?php if (!empty($rankFields)): ?>
                     <div class="text-muted small px-1 mt-2 mb-1" style="font-size:10px;text-transform:uppercase;letter-spacing:1px">Rank Indicators</div>
                     <?php foreach ($rankFields as $key => $label): ?>
                         <div class="badge bg-success d-block p-2 mb-1 text-start palette-item"
@@ -113,6 +125,7 @@ $paletteLabels = [
                             <i class="bi bi-check-square"></i> <?= htmlspecialchars($label, ENT_QUOTES, 'UTF-8') ?>
                         </div>
                     <?php endforeach; ?>
+                    <?php endif; ?>
                     <div class="text-muted small px-1 mt-2 mb-1" style="font-size:10px;text-transform:uppercase;letter-spacing:1px">Gender</div>
                     <?php foreach ($genderFields as $key => $label): ?>
                         <div class="badge bg-info d-block p-2 mb-1 text-start palette-item"
@@ -128,6 +141,24 @@ $paletteLabels = [
                          data-type="qr_code"
                          style="cursor:pointer;font-size:11px;background:#6366f1;color:#fff">
                         <i class="bi bi-qr-code"></i> QR Verification Code
+                    </div>
+
+                    <!-- ── Signatories ─────────────────────── -->
+                    <div class="text-muted small px-1 mt-2 mb-1" style="font-size:10px;text-transform:uppercase;letter-spacing:1px">Signatories</div>
+                    
+                    <div class="badge bg-secondary d-block p-2 mb-1 text-start palette-item"
+                         data-key="principal_name" data-type="text" style="cursor:pointer;font-size:11px;">
+                        <i class="bi bi-pen"></i> Principal Name
+                    </div>
+                    
+                    <div class="badge bg-secondary d-block p-2 mb-1 text-start palette-item"
+                         data-key="hod_cs_name" data-type="text" style="cursor:pointer;font-size:11px;">
+                        <i class="bi bi-pen"></i> HOD CS Name
+                    </div>
+                    
+                    <div class="badge bg-secondary d-block p-2 mb-1 text-start palette-item"
+                         data-key="hod_bca_name" data-type="text" style="cursor:pointer;font-size:11px;">
+                        <i class="bi bi-pen"></i> HOD BCA Name
                     </div>
                 </div>
             </div>
@@ -362,6 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const PDF_WIDTH_PT  = <?= (float)($template['page_width_pt']  ?? 842) ?>;
     const PDF_HEIGHT_PT = <?= (float)($template['page_height_pt'] ?? 595) ?>;
     const TEMPLATE_ID   = <?= (int)($template['certificate_template_id'] ?? 0) ?>;
+    const TEMPLATE_CERT_TYPE = '<?= htmlspecialchars($template['certificate_type'] ?? 'Winner', ENT_QUOTES) ?>';
     const CSRF_TOKEN    = '<?= htmlspecialchars(\App\Core\Session::get('_token', ''), ENT_QUOTES, 'UTF-8') ?>';
     const BASE_URL      = '<?= rtrim(base_url(''), '/') ?>';
     const PALETTE_LABELS = <?= json_encode($paletteLabels) ?>;
@@ -378,7 +410,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const canvas        = document.getElementById('cert-canvas');
     let   zoomLevel     = 1.0;
 
-    // Editor-only placeholder text for text fields (never in PDF)
     const fieldLabels = {
         'participant_name': '[Participant Name]',
         'register_number':  '[Register Number]',
@@ -390,6 +421,9 @@ document.addEventListener('DOMContentLoaded', function() {
         'venue':            '[Venue]',
         'academic_year':    '[Academic Year]',
         'rank_label':       '[Rank Label]',
+        'principal_name':   '[Principal Name]',
+        'hod_cs_name':      '[HOD CS Name]',
+        'hod_bca_name':     '[HOD BCA Name]',
     };
 
     window.addEventListener('beforeunload', (e) => {

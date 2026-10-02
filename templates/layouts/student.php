@@ -183,6 +183,12 @@ if (!empty($student['student_id'])) {
             </li>
 
             <li class="nav-item">
+                <a class="nav-link" href="<?= base_url() ?>/student/certificates">
+                    <i class="bi bi-award me-1"></i> My Certificates
+                </a>
+            </li>
+
+            <li class="nav-item">
                 <a class="nav-link" href="<?= base_url() ?>/student/feedback">
                     <i class="bi bi-chat-square-text me-1"></i> Feedback
                 </a>

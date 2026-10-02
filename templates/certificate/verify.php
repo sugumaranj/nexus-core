@@ -26,6 +26,9 @@ $status              = $result['status'] ?? 'NOT_FOUND';
 $certificateNumber   = $result['certificate_number'] ?? null;
 $recipientName       = $result['recipient_name'] ?? null;
 $eventName           = $result['event_name'] ?? null;
+$symposiumTitle      = $result['symposium_title'] ?? null;
+$certificateType     = $result['certificate_type'] ?? null;
+$displayLabel        = $result['display_label'] ?? null;
 $rankPosition        = $result['rank_position'] ?? null;
 $resultStatus        = $result['result_status'] ?? null;
 $generatedAt         = $result['generated_at'] ?? null;
@@ -310,6 +313,28 @@ function formatDate(?string $dt): string {
                 <div class="verify-field">
                     <label>Event</label>
                     <div class="val"><?= esc($eventName) ?></div>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($symposiumTitle): ?>
+                <div class="verify-field">
+                    <label>Symposium</label>
+                    <div class="val"><?= esc($symposiumTitle) ?></div>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($displayLabel): ?>
+                <div class="verify-field">
+                    <label>Achievement</label>
+                    <div class="val">
+                        <?php if ($certificateType === 'Winner'): ?>
+                            <span style="color:#d97706">🏆 <?= esc($displayLabel) ?></span>
+                        <?php elseif ($certificateType === 'Participant'): ?>
+                            <span style="color:#2563eb">✅ <?= esc($displayLabel) ?></span>
+                        <?php else: ?>
+                            <?= esc($displayLabel) ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php endif; ?>
 

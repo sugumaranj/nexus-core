@@ -32,6 +32,15 @@ declare(strict_types=1);
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <div class="d-flex align-items-center">
+                    <label for="cert_type_filter" class="me-2 fw-bold text-dark text-nowrap">Type:</label>
+                    <select name="cert_type" id="cert_type_filter" class="form-select form-select-sm" 
+                            onchange="this.form.submit()" style="width: 160px;">
+                        <option value="All" <?= ($selected_cert_type ?? 'All') === 'All' ? 'selected' : '' ?>>All Types</option>
+                        <option value="Winner" <?= ($selected_cert_type ?? '') === 'Winner' ? 'selected' : '' ?>>🏆 Winner</option>
+                        <option value="Participant" <?= ($selected_cert_type ?? '') === 'Participant' ? 'selected' : '' ?>>✅ Participant</option>
+                    </select>
+                </div>
             </form>
             <div>
                 <?php if (!empty($selected_event) && isset($event_report)): ?>
@@ -39,6 +48,16 @@ declare(strict_types=1);
                        class="btn btn-sm btn-primary <?= $event_report['missing'] > 0 ? 'disabled' : '' ?>"
                        <?= $event_report['missing'] > 0 ? 'title="Cannot download: ' . $event_report['missing'] . ' certificates missing" tabindex="-1" aria-disabled="true"' : '' ?>>
                         <i class="bi bi-file-earmark-zip"></i> Download Event ZIP
+                    </a>
+                <?php endif; ?>
+                <?php if (!empty($selected_event)): ?>
+                    <a href="<?= base_url('/certificates/download/winners-zip?event_id=' . (int)$selected_event) ?>" 
+                       class="btn btn-sm btn-outline-warning ms-1" title="Download Winner certificates only">
+                        <i class="bi bi-trophy"></i> Winners ZIP
+                    </a>
+                    <a href="<?= base_url('/certificates/download/participants-zip?event_id=' . (int)$selected_event) ?>" 
+                       class="btn btn-sm btn-outline-primary ms-1" title="Download Participant certificates only">
+                        <i class="bi bi-person-check"></i> Participants ZIP
                     </a>
                 <?php endif; ?>
                 
@@ -121,8 +140,23 @@ declare(strict_types=1);
                                     <td class="fw-bold"><?= htmlspecialchars($cert['recipient_name'], ENT_QUOTES, 'UTF-8') ?></td>
                                     <td><?= htmlspecialchars($cert['event_name'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                                     <td>
-                                        <?php if ($cert['result_status'] === 'Winner'): ?>
-                                            <span class="badge bg-warning text-dark"><i class="bi bi-trophy"></i> <?= htmlspecialchars((string)($cert['rank_position'] ?? '1'), ENT_QUOTES, 'UTF-8') ?> Rank</span>
+                                        <?php 
+                                        $certType = $cert['certificate_type'] ?? 'Legacy';
+                                        $isWinner = ($certType === 'Winner') || (!empty($cert['rank_position']) && $cert['rank_position'] <= 3 && $certType === 'Legacy');
+                                        
+                                        if ($isWinner): 
+                                            $rank = (int)($cert['rank_position'] ?? 1);
+                                            if ($rank === 1) {
+                                                $badgeStyle = 'class="badge bg-warning text-dark"'; // Gold
+                                            } elseif ($rank === 2) {
+                                                $badgeStyle = 'class="badge bg-secondary"'; // Silver
+                                            } elseif ($rank === 3) {
+                                                $badgeStyle = 'class="badge" style="background-color: #cd7f32; color: #fff;"'; // Bronze
+                                            } else {
+                                                $badgeStyle = 'class="badge bg-dark"'; // Fallback
+                                            }
+                                        ?>
+                                            <span <?= $badgeStyle ?>><i class="bi bi-trophy"></i> <?= htmlspecialchars((string)$rank, ENT_QUOTES, 'UTF-8') ?> Rank</span>
                                         <?php else: ?>
                                             <span class="badge bg-info text-dark">Participant</span>
                                         <?php endif; ?>

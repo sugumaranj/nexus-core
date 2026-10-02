@@ -49,6 +49,7 @@ use App\Controllers\ScheduleImageController;
 use App\Controllers\ResultViewerController;
 use App\Controllers\CertificateController;
 use App\Controllers\CertificateVerificationController;
+use App\Controllers\StudentCertificateController;
 
 use App\Core\Application;
 use App\Core\Bootstrap;
@@ -799,6 +800,10 @@ $router->get('/certificates/preview/pdf', [CertificateController::class, 'previe
 // Generation
 $router->get('/certificates/generate',  [CertificateController::class, 'generate']);
 $router->post('/certificates/generate', [CertificateController::class, 'runGeneration']);
+
+$router->get('/certificates/symposium-batch',  [CertificateController::class, 'symposiumBatch']);
+$router->post('/certificates/symposium-batch', [CertificateController::class, 'runSymposiumBatch']);
+
 $router->get('/certificates/report',    [CertificateController::class, 'generationReport']);
 
 // Generated Certificates List
@@ -823,12 +828,25 @@ $router->get('/certificates/template/edit',        [CertificateController::class
 $router->post('/certificates/template/edit',       [CertificateController::class, 'updateTemplate']);
 
 // AJAX Endpoints
-$router->get('/certificates/ajax/events',  [CertificateController::class, 'ajaxGetEvents']);
-$router->get('/certificates/ajax/results', [CertificateController::class, 'ajaxGetResults']);
+$router->get('/certificates/ajax/events',    [CertificateController::class, 'ajaxGetEvents']);
+$router->get('/certificates/ajax/results',   [CertificateController::class, 'ajaxGetResults']);
+$router->get('/certificates/ajax/preflight', [CertificateController::class, 'ajaxPreflight']);
 
 // Public Certificate Verification (no authentication required)
 // URL format: /certificates/verify?token=<64-char hex>
 $router->get('/certificates/verify', [CertificateVerificationController::class, 'verify']);
+
+// Staff — Type-specific ZIP downloads (Admin or Staff Coordinator — own symposium)
+$router->get('/certificates/download/winners-zip',      [CertificateController::class, 'downloadWinnersZip']);
+$router->get('/certificates/download/participants-zip', [CertificateController::class, 'downloadParticipantsZip']);
+
+// Event template assignment (Admin or Staff Coordinator — own symposium)
+$router->post('/certificates/template/set-event', [CertificateController::class, 'setEventTemplate']);
+
+// Student Certificate Portal (authenticated students only)
+$router->get('/student/certificates',          [StudentCertificateController::class, 'index']);
+$router->get('/student/certificates/view',     [StudentCertificateController::class, 'view']);
+$router->get('/student/certificates/download', [StudentCertificateController::class, 'download']);
 
 // Reports
 $router->get(

@@ -13,6 +13,7 @@ use App\Models\TeamMemberModel;
 use App\Models\CertificateTemplateModel;
 use App\Models\AuditLogModel;
 use App\Helpers\RoleHelper;
+use App\Services\CertificateRankService;
 use RuntimeException;
 use ZipArchive;
 use setasign\Fpdi\Fpdi;
@@ -28,6 +29,7 @@ final class CertificatePackageService
     private CertificateTemplateModel $templateModel;
     private AuditLogModel $auditModel;
     private SymposiumService $sympService;
+    private CertificateRankService $rankService;
 
     private const PROJECT_ROOT = __DIR__ . '/../../';
 
@@ -42,6 +44,7 @@ final class CertificatePackageService
         $this->templateModel = new CertificateTemplateModel();
         $this->auditModel = new AuditLogModel();
         $this->sympService = new SymposiumService();
+        $this->rankService = new CertificateRankService();
     }
 
     /**
@@ -97,7 +100,7 @@ final class CertificatePackageService
     /**
      * Build an Event ZIP containing all current/valid certificates.
      */
-    public function buildEventZip(int $eventId, array $user): string
+    public function buildEventZip(int $eventId, array $user, string $typeFilter = 'All'): string
     {
         if (!class_exists('ZipArchive')) {
             throw new RuntimeException('PHP ZipArchive extension is not available.');
@@ -119,9 +122,16 @@ final class CertificatePackageService
 
         // Fetch current active certificates
         $allCerts = $this->certModel->getByEvent($eventId);
-        $currentCerts = array_filter($allCerts, function($c) {
+        $certs = array_filter($allCerts, function($c) {
             return $c['generation_status'] === 'Generated';
         });
+
+        if ($typeFilter !== 'All') {
+            $certs = array_filter($certs, fn($c) => ($c['certificate_type'] ?? 'Legacy') === $typeFilter);
+            $certs = array_values($certs);
+        }
+
+        $currentCerts = $certs;
 
         if (empty($currentCerts)) {
             throw new RuntimeException('No current certificates found for this event.');
@@ -156,15 +166,18 @@ final class CertificatePackageService
             $storageRoot = realpath(self::PROJECT_ROOT . 'storage/certificates');
             
             if ($realPath && str_starts_with($realPath, $storageRoot) && is_file($realPath) && is_readable($realPath)) {
-                $statusFolder = ($cert['result_status'] === 'Winner') ? 'Winners/' : 'Participants/';
-                $prefix = ($cert['result_status'] === 'Winner' && !empty($cert['rank_position'])) 
-                    ? 'Rank_' . $cert['rank_position'] . '_' 
-                    : 'Participant_';
+                if (($cert['certificate_type'] ?? 'Legacy') === 'Winner') {
+                    $subfolder = $this->rankService->getWinnerZipSubfolder(
+                        isset($cert['rank_position']) ? (int)$cert['rank_position'] : null
+                    );
+                } else {
+                    $subfolder = $this->rankService->getParticipantZipSubfolder();
+                }
                 $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $cert['recipient_name']);
                 
-                $safeCertFile = $prefix . $safeName . '_' . $cert['application_id'] . '.pdf';
+                $safeCertFile = $subfolder . $safeName . '_' . $cert['application_id'] . '.pdf';
                 
-                $zip->addFile($realPath, $folderName . $statusFolder . $safeCertFile);
+                $zip->addFile($realPath, $folderName . $safeCertFile);
                 $included++;
             }
         }
@@ -205,9 +218,8 @@ final class CertificatePackageService
             throw new RuntimeException('Unauthorized to download complete package for this symposium.');
         }
 
-        if ($symposium['status'] !== SymposiumService::STATUS_COMPLETED) {
-            throw new RuntimeException('Symposium must be ' . SymposiumService::STATUS_COMPLETED . ' to generate a complete package.');
-        }
+        // Restriction removed to allow downloading certificates before the symposium is officially marked as 'Completed'
+        // (e.g. for printing them before the closing ceremony).
 
         $events = $this->eventModel->getBySymposium($symposiumId);
         if (empty($events)) {
@@ -281,14 +293,17 @@ final class CertificatePackageService
                 $storageRoot = realpath(self::PROJECT_ROOT . 'storage/certificates');
                 
                 if ($realPath && str_starts_with($realPath, $storageRoot) && is_file($realPath) && is_readable($realPath)) {
-                    $statusFolder = ($cert['result_status'] === 'Winner') ? 'Winners/' : 'Participants/';
-                    $prefix = ($cert['result_status'] === 'Winner' && !empty($cert['rank_position'])) 
-                        ? 'Rank_' . $cert['rank_position'] . '_' 
-                        : 'Participant_';
+                    if (($cert['certificate_type'] ?? 'Legacy') === 'Winner') {
+                        $subfolder = $this->rankService->getWinnerZipSubfolder(
+                            isset($cert['rank_position']) ? (int)$cert['rank_position'] : null
+                        );
+                    } else {
+                        $subfolder = $this->rankService->getParticipantZipSubfolder();
+                    }
                     $safeName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $cert['recipient_name']);
                     
-                    $safeCertFile = $prefix . $safeName . '_' . $cert['application_id'] . '.pdf';
-                    $zip->addFile($realPath, $folderName . $statusFolder . $safeCertFile);
+                    $safeCertFile = $subfolder . $safeName . '_' . $cert['application_id'] . '.pdf';
+                    $zip->addFile($realPath, $folderName . $safeCertFile);
                     $included++;
                 }
             }
@@ -333,10 +348,8 @@ final class CertificatePackageService
             throw new RuntimeException('Unauthorized to download complete package for this symposium.');
         }
 
-        if ($symposium['status'] !== SymposiumService::STATUS_COMPLETED) {
-            throw new RuntimeException('Symposium must be ' . SymposiumService::STATUS_COMPLETED . ' to generate a complete package.');
-        }
-
+        // Restriction removed to allow downloading certificates before the symposium is officially marked as 'Completed'
+        // (e.g. for printing them before the closing ceremony).
         $events = $this->eventModel->getBySymposium($symposiumId);
         if (empty($events)) {
             throw new RuntimeException('No events found for this symposium.');
@@ -404,5 +417,30 @@ final class CertificatePackageService
         );
 
         return $pdfPath;
+    }
+
+    /**
+     * Build a ZIP containing only Winner certificates for an event.
+     * Calls the existing buildEventZip() logic filtered to Winner type.
+     *
+     * @param int   $eventId
+     * @param array $user     Authenticated staff user array
+     * @return string         Absolute path to the generated ZIP file
+     */
+    public function buildWinnerZip(int $eventId, array $user): string
+    {
+        return $this->buildEventZip($eventId, $user, 'Winner');
+    }
+
+    /**
+     * Build a ZIP containing only Participant certificates for an event.
+     *
+     * @param int   $eventId
+     * @param array $user     Authenticated staff user array
+     * @return string         Absolute path to the generated ZIP file
+     */
+    public function buildParticipantZip(int $eventId, array $user): string
+    {
+        return $this->buildEventZip($eventId, $user, 'Participant');
     }
 }

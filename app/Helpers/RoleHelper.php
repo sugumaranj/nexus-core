@@ -361,6 +361,7 @@ final class RoleHelper
             ['title' => 'Registrations', 'icon' => 'bi-card-checklist', 'url' => '/coordinator/registrations'],
             ['title' => 'Staff Allocation', 'icon' => 'bi-people-fill', 'url' => '/symposiums/allocation'],
             ['title' => 'Certificates',    'icon' => 'bi-patch-check',     'url' => '/certificates'],
+            ['title' => 'Symposium Batch Certs', 'icon' => 'bi-stack',     'url' => '/certificates/symposium-batch'],
             ['title' => 'Reports',     'icon' => 'bi-bar-chart',       'url' => '/reports'],
             ['title' => 'Audit Logs',  'icon' => 'bi-journal-text',    'url' => '/audit-logs'],
             ['title' => 'Master Data', 'is_header' => true],
@@ -417,6 +418,7 @@ final class RoleHelper
             ['title' => 'Reports',               'icon' => 'bi-bar-chart',      'url' => '/reports'],
             ['title' => 'Evaluation & Results',  'icon' => 'bi-award',          'url' => '/evaluation/results'],
             ['title' => 'Certificates',          'icon' => 'bi-patch-check',    'url' => '/certificates'],
+            ['title' => 'Symposium Batch Certs', 'icon' => 'bi-stack',          'url' => '/certificates/symposium-batch'],
 
             ['title' => 'MY PORTALS',            'is_header' => true],
             ['title' => 'My Assigned Events',    'icon' => 'bi-person-workspace','url' => '/my/assigned-events'],

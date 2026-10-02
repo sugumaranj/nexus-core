@@ -44,6 +44,25 @@ final class GeneratedCertificateModel
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * Find the current (is_current = 1) certificate for a given issuance key.
+     * The key is built from eventId|applicationId|studentId|certType.
+     *
+     * @param  int    $appId
+     * @param  int    $eventId
+     * @param  int    $studentId
+     * @param  string $certType
+     * @return array|false
+     */
+    public function findCurrentByType(int $appId, int $eventId, int $studentId, string $certType): array|false
+    {
+        $key  = self::buildIssuanceKey($eventId, $appId, $studentId, $certType);
+        $sql  = "SELECT * FROM generated_certificates WHERE cert_issuance_key = :key AND is_current = 1 LIMIT 1";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['key' => $key]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+    }
+
     public function insert(array $data): int
     {
         $sql = "
@@ -51,38 +70,45 @@ final class GeneratedCertificateModel
                 symposium_event_id, application_id, recipient_student_id, result_id, template_id, version_id,
                 recipient_name, rank_position, result_status, file_path, file_hash,
                 verification_token, certificate_hash, canonical_snapshot,
-                generation_status, generation_notes, generated_by, generated_at, previous_cert_id
+                generation_status, generation_notes, generated_by, generated_at, previous_cert_id,
+                certificate_type, attendance_session_id, is_current, canonical_schema_version, cert_issuance_key
             ) VALUES (
                 :symposium_event_id, :application_id, :recipient_student_id, :result_id, :template_id, :version_id,
                 :recipient_name, :rank_position, :result_status, :file_path, :file_hash,
                 :verification_token, :certificate_hash, :canonical_snapshot,
-                :generation_status, :generation_notes, :generated_by, NOW(), :previous_cert_id
+                :generation_status, :generation_notes, :generated_by, NOW(), :previous_cert_id,
+                :certificate_type, :attendance_session_id, :is_current, :canonical_schema_version, :cert_issuance_key
             )
         ";
         $stmt = $this->db->prepare($sql);
         $stmt->execute([
-            'symposium_event_id'   => $data['symposium_event_id'] ?? null,
-            'application_id'       => $data['application_id'] ?? null,
-            'recipient_student_id' => $data['recipient_student_id'] ?? null,
-            'result_id'            => $data['result_id'] ?? null,
-            'template_id'          => $data['template_id'] ?? null,
-            'version_id'           => $data['version_id'] ?? null,
-            'recipient_name'       => $data['recipient_name'] ?? null,
-            'rank_position'        => $data['rank_position'] ?? null,
-            'result_status'        => $data['result_status'] ?? null,
-            'file_path'            => $data['file_path'] ?? null,
-            'file_hash'            => $data['file_hash'] ?? null,
-            'verification_token'   => $data['verification_token'] ?? null,
-            'certificate_hash'     => $data['certificate_hash'] ?? null,
-            'canonical_snapshot'   => isset($data['canonical_snapshot'])
+            'symposium_event_id'      => $data['symposium_event_id'] ?? null,
+            'application_id'          => $data['application_id'] ?? null,
+            'recipient_student_id'    => $data['recipient_student_id'] ?? null,
+            'result_id'               => $data['result_id'] ?? null,
+            'template_id'             => $data['template_id'] ?? null,
+            'version_id'              => $data['version_id'] ?? null,
+            'recipient_name'          => $data['recipient_name'] ?? null,
+            'rank_position'           => $data['rank_position'] ?? null,
+            'result_status'           => $data['result_status'] ?? null,
+            'file_path'               => $data['file_path'] ?? null,
+            'file_hash'               => $data['file_hash'] ?? null,
+            'verification_token'      => $data['verification_token'] ?? null,
+            'certificate_hash'        => $data['certificate_hash'] ?? null,
+            'canonical_snapshot'      => isset($data['canonical_snapshot'])
                 ? (is_array($data['canonical_snapshot'])
                     ? json_encode($data['canonical_snapshot'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                     : $data['canonical_snapshot'])
                 : null,
-            'generation_status'    => $data['generation_status'] ?? 'Generated',
-            'generation_notes'     => $data['generation_notes'] ?? null,
-            'generated_by'         => $data['generated_by'] ?? null,
-            'previous_cert_id'     => $data['previous_cert_id'] ?? null,
+            'generation_status'       => $data['generation_status'] ?? 'Generated',
+            'generation_notes'        => $data['generation_notes'] ?? null,
+            'generated_by'            => $data['generated_by'] ?? null,
+            'previous_cert_id'        => $data['previous_cert_id'] ?? null,
+            'certificate_type'        => $data['certificate_type'] ?? null,
+            'attendance_session_id'   => $data['attendance_session_id'] ?? null,
+            'is_current'              => $data['is_current'] ?? 1,
+            'canonical_schema_version'=> $data['canonical_schema_version'] ?? 2,
+            'cert_issuance_key'       => $data['cert_issuance_key'] ?? null,
         ]);
 
         $certId = (int)$this->db->lastInsertId();
@@ -95,7 +121,7 @@ final class GeneratedCertificateModel
 
         return $certId;
     }
-    
+
     private function generateCertificateNumber(int $certId): string
     {
         return 'CERT-' . date('Y') . '-' . str_pad((string)$certId, 6, '0', STR_PAD_LEFT);
@@ -105,27 +131,49 @@ final class GeneratedCertificateModel
     {
         $sql = "UPDATE generated_certificates SET generation_status = :status";
         $params = ['status' => $status, 'id' => $certId];
-        
+
         if ($notes !== null) {
             $sql .= ", generation_notes = :notes";
             $params['notes'] = $notes;
         }
-        
+
         if ($fileHash !== null) {
             $sql .= ", file_hash = :hash";
             $params['hash'] = $fileHash;
         }
-        
+
         $sql .= " WHERE certificate_id = :id";
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($params);
     }
 
-    public function getByEvent(int $symposiumEventId): array
+    /**
+     * Return certificates for an event.
+     *
+     * @param  int         $symposiumEventId
+     * @param  string|null $certType    When not null, filters by certificate_type.
+     * @param  bool        $currentOnly When true (default), restricts to is_current = 1 and generation_status = 'Generated'.
+     * @return array
+     */
+    public function getByEvent(int $symposiumEventId, ?string $certType = null, bool $currentOnly = true): array
     {
-        $sql = "SELECT * FROM generated_certificates WHERE symposium_event_id = :event_id AND generation_status != 'Regenerated' ORDER BY generated_at DESC";
+        $params = ['event_id' => $symposiumEventId];
+
+        $sql = "SELECT * FROM generated_certificates WHERE symposium_event_id = :event_id";
+
+        if ($currentOnly) {
+            $sql .= " AND is_current = 1 AND generation_status = 'Generated'";
+        }
+
+        if ($certType !== null) {
+            $sql .= " AND certificate_type = :cert_type";
+            $params['cert_type'] = $certType;
+        }
+
+        $sql .= " ORDER BY generated_at DESC";
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['event_id' => $symposiumEventId]);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
@@ -143,11 +191,25 @@ final class GeneratedCertificateModel
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public function countByEvent(int $symposiumEventId): int
+    /**
+     * Count current Generated certificates for an event.
+     *
+     * @param  int         $symposiumEventId
+     * @param  string|null $certType  Optional certificate type filter.
+     * @return int
+     */
+    public function countByEvent(int $symposiumEventId, ?string $certType = null): int
     {
-        $sql = "SELECT COUNT(*) FROM generated_certificates WHERE symposium_event_id = :event_id AND generation_status = 'Generated'";
+        $params = ['event_id' => $symposiumEventId];
+        $sql = "SELECT COUNT(*) FROM generated_certificates WHERE symposium_event_id = :event_id AND is_current = 1 AND generation_status = 'Generated'";
+
+        if ($certType !== null) {
+            $sql .= " AND certificate_type = :cert_type";
+            $params['cert_type'] = $certType;
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['event_id' => $symposiumEventId]);
+        $stmt->execute($params);
         return (int)$stmt->fetchColumn();
     }
 
@@ -164,7 +226,7 @@ final class GeneratedCertificateModel
         if (empty($certIds)) {
             return [];
         }
-        
+
         $placeholders = implode(',', array_fill(0, count($certIds), '?'));
         $sql = "SELECT * FROM generated_certificates WHERE certificate_id IN ($placeholders)";
         $stmt = $this->db->prepare($sql);
@@ -173,15 +235,52 @@ final class GeneratedCertificateModel
     }
 
     /**
+     * Return all current Generated certificates for a student, joined with event name.
+     *
+     * @param  int $studentId
+     * @return array
+     */
+    public function getByStudent(int $studentId): array
+    {
+        $sql = "
+            SELECT gc.*, se.event_name,
+                   COALESCE(sym.title, se.event_name) AS symposium_title
+            FROM generated_certificates gc
+            LEFT JOIN symposium_events se ON gc.symposium_event_id = se.symposium_event_id
+            LEFT JOIN symposiums sym ON se.symposium_id = sym.symposium_id
+            WHERE gc.recipient_student_id = :sid
+              AND gc.is_current = 1
+              AND gc.generation_status = 'Generated'
+            ORDER BY gc.generated_at DESC
+        ";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['sid' => $studentId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Mark an old certificate as Superseded (is_current = NULL).
+     *
+     * @param  int $oldCertId
+     * @return bool
+     */
+    public function markSuperseded(int $oldCertId): bool
+    {
+        $sql = "UPDATE generated_certificates SET is_current = NULL, generation_status = 'Superseded' WHERE certificate_id = :id AND is_current = 1";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['id' => $oldCertId]);
+    }
+
+    /**
+     * @deprecated Use markSuperseded() instead.
      * Mark an old certificate as Regenerated (superseded).
      * The new cert's previous_cert_id should be set via insert() or update().
      */
     public function markRegenerated(int $oldCertId): bool
     {
-        $sql = "UPDATE generated_certificates SET generation_status = 'Regenerated' WHERE certificate_id = :old_id AND generation_status = 'Generated'";
-        $stmt = $this->db->prepare($sql);
-        return $stmt->execute(['old_id' => $oldCertId]);
+        return $this->markSuperseded($oldCertId);
     }
+
     /**
      * Alias for insert() to match service call pattern.
      */
@@ -207,15 +306,16 @@ final class GeneratedCertificateModel
             'file_path', 'file_hash', 'generation_status', 'generation_notes',
             'previous_cert_id', 'regenerated_count',
             'verification_token', 'certificate_hash', 'canonical_snapshot',
+            'certificate_type', 'is_current', 'cert_issuance_key', 'canonical_schema_version',
         ];
-        $sets = [];
+        $sets   = [];
         $params = ['id' => $certId];
 
         foreach ($data as $col => $val) {
             if (!in_array($col, $allowedColumns, true)) {
                 continue;
             }
-            $sets[] = "{$col} = :{$col}";
+            $sets[]      = "{$col} = :{$col}";
             $params[$col] = $val;
         }
 
@@ -223,7 +323,7 @@ final class GeneratedCertificateModel
             return true;
         }
 
-        $sql = 'UPDATE generated_certificates SET ' . implode(', ', $sets) . ' WHERE certificate_id = :id';
+        $sql  = 'UPDATE generated_certificates SET ' . implode(', ', $sets) . ' WHERE certificate_id = :id';
         $stmt = $this->db->prepare($sql);
         return $stmt->execute($params);
     }
@@ -242,5 +342,20 @@ final class GeneratedCertificateModel
         $stmt->execute(['token' => $token]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
-}
 
+    /**
+     * Build a deterministic issuance key for dedup / lookup.
+     *
+     * Format: "{eventId}|{applicationId}|{recipientStudentId}|{certificateType}"
+     *
+     * @param  int         $eventId
+     * @param  int         $applicationId
+     * @param  int|null    $recipientStudentId  Use 0 when no student is linked.
+     * @param  string      $certificateType
+     * @return string
+     */
+    private static function buildIssuanceKey(int $eventId, int $applicationId, ?int $recipientStudentId, string $certificateType): string
+    {
+        return "{$eventId}|{$applicationId}|" . ($recipientStudentId ?? 0) . "|{$certificateType}";
+    }
+}

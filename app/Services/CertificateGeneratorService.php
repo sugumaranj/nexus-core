@@ -12,6 +12,7 @@ use chillerlan\QRCode\Output\QRGdImagePNG;
 
 final class CertificateGeneratorService
 {
+    private array $signatoryCache = [];
 
     public function generateOne(
         array $result,
@@ -215,6 +216,12 @@ final class CertificateGeneratorService
                 return (string) ($result['academic_year'] ?? '');
             case 'rank_label':
                 return $this->rankLabel((int)($result['rank_position'] ?? 0));
+            case 'principal_name':
+                return $this->getAuthorityName('principal');
+            case 'hod_cs_name':
+                return $this->getAuthorityName('hod_cs');
+            case 'hod_bca_name':
+                return $this->getAuthorityName('hod_bca');
             // Legacy fields — return empty so old templates do not break
             case 'venue':
             default:
@@ -230,6 +237,71 @@ final class CertificateGeneratorService
             3 => '3rd Place',
             default => 'Participation',
         };
+    }
+
+    /**
+     * Retrieve an authority/signatory name from the users table, with in-memory caching.
+     *
+     * Mapping:
+     *   'principal' → users WHERE role = 'Principal' LIMIT 1
+     *   'hod_cs'    → users WHERE role = 'HOD' AND department_id = 2 (B.Sc. CS) LIMIT 1
+     *   'hod_bca'   → users WHERE role = 'HOD' AND department_id = 1 (BCA) LIMIT 1
+     *
+     * Falls back to system_settings (CERT_PRINCIPAL_NAME, etc.) if no user found.
+     */
+    private function getAuthorityName(string $authorityKey): string
+    {
+        if (isset($this->signatoryCache[$authorityKey])) {
+            return $this->signatoryCache[$authorityKey];
+        }
+
+        $db = \App\Database\Database::getConnection();
+        $name = '';
+
+        switch ($authorityKey) {
+            case 'principal':
+                $stmt = $db->prepare("SELECT full_name FROM users WHERE role = 'Principal' LIMIT 1");
+                $stmt->execute();
+                $name = $stmt->fetchColumn();
+                // Fallback to system_settings
+                if (!$name) {
+                    $name = $this->getSettingValue('CERT_PRINCIPAL_NAME');
+                }
+                break;
+
+            case 'hod_cs':
+                $stmt = $db->prepare("SELECT full_name FROM users WHERE role = 'HOD' AND department_id = 2 LIMIT 1");
+                $stmt->execute();
+                $name = $stmt->fetchColumn();
+                if (!$name) {
+                    $name = $this->getSettingValue('CERT_HOD_CS_NAME');
+                }
+                break;
+
+            case 'hod_bca':
+                $stmt = $db->prepare("SELECT full_name FROM users WHERE role = 'HOD' AND department_id = 1 LIMIT 1");
+                $stmt->execute();
+                $name = $stmt->fetchColumn();
+                if (!$name) {
+                    $name = $this->getSettingValue('CERT_HOD_BCA_NAME');
+                }
+                break;
+        }
+
+        $this->signatoryCache[$authorityKey] = ($name !== false && $name !== null) ? (string)$name : '';
+        return $this->signatoryCache[$authorityKey];
+    }
+
+    /**
+     * Fallback: read from system_settings table.
+     */
+    private function getSettingValue(string $key): string
+    {
+        $db   = \App\Database\Database::getConnection();
+        $stmt = $db->prepare("SELECT setting_value FROM system_settings WHERE setting_key = :key LIMIT 1");
+        $stmt->execute(['key' => $key]);
+        $val = $stmt->fetchColumn();
+        return ($val !== false && $val !== null) ? (string)$val : '';
     }
 
     // -------------------------------------------------------------------------

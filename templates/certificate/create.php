@@ -29,6 +29,27 @@ declare(strict_types=1);
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold">Certificate Type <span class="text-danger">*</span></label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="certificate_type" 
+                                           id="cert_type_winner" value="Winner" checked>
+                                    <label class="form-check-label" for="cert_type_winner">
+                                        <i class="bi bi-trophy-fill text-warning me-1"></i> Winner Certificate
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="radio" name="certificate_type" 
+                                           id="cert_type_participant" value="Participant">
+                                    <label class="form-check-label" for="cert_type_participant">
+                                        <i class="bi bi-person-check-fill text-primary me-1"></i> Participant Certificate
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-text">Winner = rank-based (1st/2nd/3rd). Participant = attendance-based (no rank fields).</div>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-bold">Rank Display Mode <span class="text-danger">*</span></label>
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="rank_display_mode" id="rank_checkboxes" value="checkboxes" required>
@@ -98,3 +119,21 @@ declare(strict_types=1);
         </div>
     </div>
 </div>
+
+<script>
+// Auto-toggle rank display mode based on certificate type
+document.querySelectorAll('input[name="certificate_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const rankRadios = document.querySelectorAll('input[name="rank_display_mode"]');
+        const rankSection = rankRadios[0]?.closest('.mb-3');
+        if (this.value === 'Participant') {
+            rankRadios.forEach(r => { r.disabled = true; });
+            document.getElementById('rank_none').checked = true;
+            if (rankSection) rankSection.style.opacity = '0.5';
+        } else {
+            rankRadios.forEach(r => { r.disabled = false; });
+            if (rankSection) rankSection.style.opacity = '1';
+        }
+    });
+});
+</script>
