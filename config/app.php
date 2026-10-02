@@ -19,7 +19,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'name' => $_ENV['APP_NAME'] ?? 'NexusCore',
+    'name' => $_ENV['APP_NAME'] ?? getenv('APP_NAME') ?? 'NexusCore',
 
     /*
     |--------------------------------------------------------------------------
@@ -33,12 +33,12 @@ return [
 
     'college_name'    => 'Government Arts and Science College',
     'college_address' => 'Veerapandi, Theni District',
-    'college_event'   => 'Nexus — Intra Department Symposium',
+    'college_event'   => 'Nexus ?" Intra Department Symposium',
 
-    'environment' => $_ENV['APP_ENV'] ?? 'production',
+    'environment' => $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?? 'production',
 
     'debug' => filter_var(
-        $_ENV['APP_DEBUG'] ?? false,
+        $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? false,
         FILTER_VALIDATE_BOOLEAN
     ),
 
@@ -51,9 +51,9 @@ return [
     |
     */
 
-    'base_url' => '/NexusCore',
+    'base_url' => $_ENV['BASE_URL'] ?? getenv('BASE_URL') ?? '/NexusCore',
 
-    'asset_url' => '/NexusCore/public',
+    'asset_url' => $_ENV['ASSET_URL'] ?? getenv('ASSET_URL') ?? '/NexusCore/public',
 
     /*
     |--------------------------------------------------------------------------
