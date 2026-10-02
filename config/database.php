@@ -2,17 +2,28 @@
 
 declare(strict_types=1);
 
+$env = function(string $key, $default = null) {
+    if (isset($_ENV[$key])) {
+        return $_ENV[$key];
+    }
+    $val = getenv($key);
+    if ($val !== false) {
+        return $val;
+    }
+    return $default;
+};
+
 return [
 
-    'host' => $_ENV['DB_HOST'] ?? getenv('DB_HOST'),
+    'host' => $env('DB_HOST', 'localhost'),
 
-    'port' => $_ENV['DB_PORT'] ?? getenv('DB_PORT'),
+    'port' => $env('DB_PORT', '3306'),
 
-    'database' => $_ENV['DB_NAME'] ?? getenv('DB_NAME'),
+    'database' => $env('DB_NAME', 'nexus_ems'),
 
-    'username' => $_ENV['DB_USER'] ?? getenv('DB_USER'),
+    'username' => $env('DB_USER', 'root'),
 
-    'password' => $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD'),
+    'password' => $env('DB_PASSWORD', ''),
 
     'charset' => 'utf8mb4'
 

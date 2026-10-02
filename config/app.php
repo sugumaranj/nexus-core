@@ -11,6 +11,18 @@ declare(strict_types=1);
  * ---------------------------------------------------------
  */
 
+// Helper to safely fetch environment variables from $_ENV or getenv()
+$env = function(string $key, $default = null) {
+    if (isset($_ENV[$key])) {
+        return $_ENV[$key];
+    }
+    $val = getenv($key);
+    if ($val !== false) {
+        return $val;
+    }
+    return $default;
+};
+
 return [
 
     /*
@@ -19,7 +31,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'name' => $_ENV['APP_NAME'] ?? getenv('APP_NAME') ?? 'NexusCore',
+    'name' => $env('APP_NAME', 'NexusCore'),
 
     /*
     |--------------------------------------------------------------------------
@@ -35,10 +47,10 @@ return [
     'college_address' => 'Veerapandi, Theni District',
     'college_event'   => 'Nexus ?" Intra Department Symposium',
 
-    'environment' => $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?? 'production',
+    'environment' => $env('APP_ENV', 'production'),
 
     'debug' => filter_var(
-        $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?? false,
+        $env('APP_DEBUG', false),
         FILTER_VALIDATE_BOOLEAN
     ),
 
@@ -51,9 +63,9 @@ return [
     |
     */
 
-    'base_url' => $_ENV['BASE_URL'] ?? getenv('BASE_URL') ?? '/NexusCore',
+    'base_url' => $env('BASE_URL', '/NexusCore'),
 
-    'asset_url' => $_ENV['ASSET_URL'] ?? getenv('ASSET_URL') ?? '/NexusCore/public',
+    'asset_url' => $env('ASSET_URL', '/NexusCore/public'),
 
     /*
     |--------------------------------------------------------------------------
