@@ -63,7 +63,8 @@ final class ErrorHandler
         http_response_code((int)$code);
 
         // 4. Determine if we are in Debug Mode
-        $isDebug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+        // FORCING DEBUG MODE TRUE TEMPORARILY TO SEE AZURE ERROR
+        $isDebug = true; // ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
 
         if ($isDebug) {
             self::renderTracePage($exception);
