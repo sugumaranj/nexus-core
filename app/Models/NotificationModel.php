@@ -378,4 +378,17 @@ final class NotificationModel extends BaseModel
             'recipient_id'    => $studentId,
         ]);
     }
+
+    /**
+     * Delete all notifications for a given student.
+     * 
+     * @param int $studentId
+     * @return bool
+     */
+    public function deleteAllForStudent(int $studentId): bool
+    {
+        $sql = "DELETE FROM notifications WHERE recipient_type = 'Student' AND recipient_id = :recipient_id";
+        $stmt = $this->db->prepare($sql);
+        return $stmt->execute(['recipient_id' => $studentId]);
+    }
 }

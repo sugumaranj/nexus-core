@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+/* Enable error reporting for debugging in public/index.php */
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
 error_reporting(E_ALL);
@@ -988,6 +989,12 @@ $router->post(
 $router->get(
     '/student/notifications',
     [StudentPortalController::class, 'notifications']
+);
+
+// Student Notifications (POST)
+$router->post(
+    '/student/notifications/clear',
+    [StudentPortalController::class, 'clearNotifications']
 );
 
 // Student Chatbot API (POST)

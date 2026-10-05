@@ -22,11 +22,35 @@ use App\Core\Session;
 
 <div class="container-fluid py-4 px-4">
 
+    <?php if ($successMsg = Session::getFlash('success')): ?>
+        <div class="alert alert-success alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i><?= htmlspecialchars($successMsg, ENT_QUOTES, 'UTF-8') ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
+    <?php if ($errorMsg = Session::getFlash('error')): ?>
+        <div class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-2"></i><?= htmlspecialchars($errorMsg, ENT_QUOTES, 'UTF-8') ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    <?php endif; ?>
+
     <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
             <h4 class="fw-bold mb-0">Notifications</h4>
             <p class="text-muted mb-0">Stay updated on your registration statuses and announcements.</p>
         </div>
+        <?php if (!empty($notifications)): ?>
+            <div>
+                <form action="<?= base_url() ?>/student/notifications/clear" method="POST" onsubmit="return confirm('Are you sure you want to clear all notifications?');">
+                    <input type="hidden" name="csrf_token" value="<?= Session::get('csrf_token') ?>">
+                    <button type="submit" class="btn btn-outline-danger btn-sm shadow-sm">
+                        <i class="bi bi-trash me-1"></i> Clear All
+                    </button>
+                </form>
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php if (empty($notifications)): ?>

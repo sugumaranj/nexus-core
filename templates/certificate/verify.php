@@ -369,7 +369,14 @@ function formatDate(?string $dt): string {
             <?php endif; ?>
 
             <!-- Cryptographic integrity section -->
-            <?php if ($certHash || $fileHash || $status === 'HASH_MISMATCH' || $status === 'PDF_MISMATCH'): ?>
+            <?php 
+            /* 
+             * HIDDEN: This cryptographic integrity section is disabled because 
+             * displaying it caused confusion and raised questions for participants 
+             * and winners during the certificate verification process. 
+             */
+            if (false && ($certHash || $fileHash || $status === 'HASH_MISMATCH' || $status === 'PDF_MISMATCH')): 
+            ?>
             <p class="verify-section-title" style="margin-top:0.5rem">Cryptographic Integrity</p>
             <div class="verify-hashes">
 
@@ -429,7 +436,7 @@ function formatDate(?string $dt): string {
         <div class="verify-footer">
             <p>
                 Powered by <strong>NexusCore EMS</strong> &mdash;
-                Certificates are issued by the department and carry cryptographic integrity verification.
+                Certificates are securely issued by the department.
                 <?php if ($token): ?>
                 <br><span style="font-size:0.72rem;color:#cbd5e1">Token: <?= esc(substr($token, 0, 8)) ?>…</span>
                 <?php endif; ?>

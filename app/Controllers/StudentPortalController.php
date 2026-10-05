@@ -402,9 +402,38 @@ class StudentPortalController extends BaseController
         $studentSession = $studentAuth->student();
         $studentId   = (int)($studentSession['student_id'] ?? 0);
 
+        $notificationModel = new \App\Models\NotificationModel();
+        $notifications = $notificationModel->getAllForStudent($studentId);
+
+        // Mark as read after fetching so they show as unread on first view
+        if (!empty($notifications)) {
+            $notificationModel->markAllStudentNotificationsRead($studentId);
+        }
+
         $this->render('student.notifications', [
             'pageTitle' => 'Notifications',
             'studentId' => $studentId,
+            'notifications' => $notifications,
         ], 'student');
+    }
+
+    public function clearNotifications(): void
+    {
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            $this->redirect('/student/notifications');
+            return;
+        }
+
+        $studentAuth = new StudentAuthService();
+        $studentSession = $studentAuth->student();
+        $studentId   = (int)($studentSession['student_id'] ?? 0);
+
+        if ($studentId > 0) {
+            $notificationModel = new \App\Models\NotificationModel();
+            $notificationModel->deleteAllForStudent($studentId);
+            \App\Core\Session::flash('success', 'All notifications cleared successfully.');
+        }
+
+        $this->redirect('/student/notifications');
     }
 }
