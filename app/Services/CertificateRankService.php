@@ -63,7 +63,7 @@ final class CertificateRankService
      * getCertificateDisplayLabel() only.
      *
      * @param int|null $rank
-     * @return string|null  '1st Place' | '2nd Place' | '3rd Place' | null
+     * @return string|null  '1st' | '2nd' | '3rd' | null
      * -------------------------------------------------------------------------
      */
     public function formatWinnerRank(?int $rank): ?string
@@ -89,9 +89,9 @@ final class CertificateRankService
      * alone never produces 'Participation'.
      *
      * Examples:
-     *   getCertificateDisplayLabel('Winner', 1) → '1st Place'
-     *   getCertificateDisplayLabel('Winner', 2) → '2nd Place'
-     *   getCertificateDisplayLabel('Winner', 3) → '3rd Place'
+     *   getCertificateDisplayLabel('Winner', 1) → '1st'
+     *   getCertificateDisplayLabel('Winner', 2) → '2nd'
+     *   getCertificateDisplayLabel('Winner', 3) → '3rd'
      *   getCertificateDisplayLabel('Winner', 4) → 'Winner (Unranked)'
      *   getCertificateDisplayLabel('Winner', null) → 'Winner (Unranked)'
      *   getCertificateDisplayLabel('Participant', null) → 'Participation'

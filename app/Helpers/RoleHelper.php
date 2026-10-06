@@ -362,7 +362,6 @@ final class RoleHelper
             ['title' => 'Staff Allocation', 'icon' => 'bi-people-fill', 'url' => '/symposiums/allocation'],
             ['title' => 'Certificates',    'icon' => 'bi-patch-check',     'url' => '/certificates'],
             ['title' => 'Symposium Batch Certs', 'icon' => 'bi-stack',     'url' => '/certificates/symposium-batch'],
-            ['title' => 'Reports',     'icon' => 'bi-bar-chart',       'url' => '/reports'],
             ['title' => 'Audit Logs',  'icon' => 'bi-journal-text',    'url' => '/audit-logs'],
             ['title' => 'Master Data', 'is_header' => true],
             ['title' => 'Master Events', 'icon' => 'bi-collection-fill', 'url' => '/admin/events'],
@@ -370,6 +369,9 @@ final class RoleHelper
             ['title' => 'Venues',      'icon' => 'bi-geo-alt',         'url' => '/venues'],
             ['title' => 'Settings',    'icon' => 'bi-gear',            'url' => '/settings'],
             ['title' => 'Sync Center', 'icon' => 'bi-arrow-repeat',    'url' => '/sync-center'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
+            ['title' => 'Reports',     'icon' => 'bi-bar-chart',       'url' => '/reports'],
         ];
     }
 
@@ -379,6 +381,8 @@ final class RoleHelper
             ['title' => 'Dashboard',          'icon' => 'bi-speedometer2',      'url' => '/dashboard'],
             ['title' => 'Final Approvals',    'icon' => 'bi-check2-all',        'url' => '/symposiums?quick_filter=Pending+Principal+Approval'],
             ['title' => 'Approved Symposiums','icon' => 'bi-calendar-check',    'url' => '/symposiums?quick_filter=Approved'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
             ['title' => 'Reports',            'icon' => 'bi-bar-chart',         'url' => '/reports'],
         ];
     }
@@ -391,9 +395,11 @@ final class RoleHelper
             ['title' => 'Pending Approvals',  'icon' => 'bi-hourglass-split',   'url' => '/symposiums?status=Pending HOD Approval'],
             ['title' => 'Approved Symposiums','icon' => 'bi-calendar-check',    'url' => '/symposiums?status=Approved'],
             ['title' => 'Judge Dashboard',    'icon' => 'bi-star',              'url' => '/judge/dashboard'],
-            ['title' => 'Reports',            'icon' => 'bi-bar-chart',         'url' => '/reports'],
             ['title' => 'Event Feedback',     'icon' => 'bi-chat-square-text',  'url' => '/feedback'],
             ['title' => 'Sync Center',        'icon' => 'bi-arrow-repeat',      'url' => '/sync-center'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
+            ['title' => 'Reports',            'icon' => 'bi-bar-chart',         'url' => '/reports'],
         ];
     }
 
@@ -402,7 +408,6 @@ final class RoleHelper
         return [
             ['title' => 'MAIN',                  'is_header' => true],
             ['title' => 'Dashboard',             'icon' => 'bi-speedometer2',   'url' => '/dashboard'],
-            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
 
             ['title' => 'MANAGEMENT',            'is_header' => true],
             ['title' => 'Students',              'icon' => 'bi-person-vcard',   'url' => '/students'],
@@ -415,7 +420,6 @@ final class RoleHelper
             ['title' => 'Staff Allocation',      'icon' => 'bi-people-fill',    'url' => '/symposiums/allocation'],
             ['title' => 'Master Events',         'icon' => 'bi-collection-fill', 'url' => '/admin/events'],
             ['title' => 'Venues',                'icon' => 'bi-geo-alt',         'url' => '/venues'],
-            ['title' => 'Reports',               'icon' => 'bi-bar-chart',      'url' => '/reports'],
             ['title' => 'Evaluation & Results',  'icon' => 'bi-award',          'url' => '/evaluation/results'],
             ['title' => 'Certificates',          'icon' => 'bi-patch-check',    'url' => '/certificates'],
             ['title' => 'Symposium Batch Certs', 'icon' => 'bi-stack',          'url' => '/certificates/symposium-batch'],
@@ -426,6 +430,9 @@ final class RoleHelper
 
             ['title' => 'SYSTEM',                'is_header' => true],
             ['title' => 'Sync Center',           'icon' => 'bi-arrow-repeat',   'url' => '/sync-center'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
+            ['title' => 'Reports',               'icon' => 'bi-bar-chart',      'url' => '/reports'],
         ];
     }
 
@@ -440,6 +447,9 @@ final class RoleHelper
             ['title' => 'Judge Dashboard',       'icon' => 'bi-star',           'url' => '/judge/dashboard'],
             ['title' => 'Attendance',            'icon' => 'bi-calendar2-check','url' => '/attendance'],
             ['title' => 'Sync Center',           'icon' => 'bi-arrow-repeat',   'url' => '/sync-center'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
+            ['title' => 'Reports',               'icon' => 'bi-bar-chart',      'url' => '/reports'],
         ];
     }
 
@@ -451,8 +461,10 @@ final class RoleHelper
             ['title' => 'Competition Registrations', 'icon' => 'bi-trophy',          'url' => '/competitions'],
             ['title' => 'Attendance',                'icon' => 'bi-calendar2-check', 'url' => '/attendance'],
             ['title' => 'Certificates',              'icon' => 'bi-award',           'url' => '/certificates'],
-            ['title' => 'Reports',                   'icon' => 'bi-bar-chart',       'url' => '/reports'],
             ['title' => 'Sync Center',               'icon' => 'bi-arrow-repeat',    'url' => '/sync-center'],
+            ['title' => 'NOT IMPLEMENTED',       'is_header' => true],
+            ['title' => 'Notifications',         'icon' => 'bi-bell',           'url' => '/notifications'],
+            ['title' => 'Reports',                   'icon' => 'bi-bar-chart',       'url' => '/reports'],
         ];
     }
 }

@@ -68,11 +68,11 @@ class EvaluationEngine
         // Status mapping
         foreach ($results as &$res) {
             if ($res['rank_position'] === 1) {
-                $res['result_status'] = 'First Place';
+                $res['result_status'] = '1st Place';
             } elseif ($res['rank_position'] === 2) {
-                $res['result_status'] = 'Second Place';
+                $res['result_status'] = '2nd Place';
             } elseif ($res['rank_position'] === 3) {
-                $res['result_status'] = 'Third Place';
+                $res['result_status'] = '3rd Place';
             } else {
                 $res['result_status'] = 'Participant';
             }

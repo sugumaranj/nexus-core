@@ -35,26 +35,67 @@ final class ResultViewerController extends BaseController
      */
     public function index(): void
     {
-        // For a Staff Coordinator, they might want to see events in their department or all events depending on the rules.
-        // For simplicity and transparency, we fetch all events that have been completed/published.
-        // If we want to strictly filter by department, we can check $_SESSION['department_id'].
-        // Let's fetch all events for now, since it's a global module.
         $db = \App\Database\Database::getConnection();
         
-        // Fetch symposium events that are locked or completed
-        $stmt = $db->prepare("
+        $symposiumIdFilter = null;
+        if (isset($_GET['symposium_id'])) {
+            if ($_GET['symposium_id'] !== '') {
+                $symposiumIdFilter = (int)$_GET['symposium_id'];
+            }
+            // If it's an empty string ("All Symposiums"), it remains null
+        } else {
+            // Default to the most recently created symposium that has locked events
+            $latestStmt = $db->prepare("
+                SELECT s.symposium_id
+                FROM symposiums s
+                JOIN symposium_events e ON s.symposium_id = e.symposium_id
+                WHERE e.is_locked = 1
+                ORDER BY s.created_at DESC
+                LIMIT 1
+            ");
+            $latestStmt->execute();
+            $latest = $latestStmt->fetch(\PDO::FETCH_ASSOC);
+            if ($latest) {
+                $symposiumIdFilter = (int)$latest['symposium_id'];
+            }
+        }
+
+        // Fetch symposiums that have at least one locked event (for the filter dropdown)
+        $symposiumStmt = $db->prepare("
+            SELECT DISTINCT s.symposium_id, s.title
+            FROM symposiums s
+            JOIN symposium_events e ON s.symposium_id = e.symposium_id
+            WHERE e.is_locked = 1
+            ORDER BY s.title ASC
+        ");
+        $symposiumStmt->execute();
+        $symposiums = $symposiumStmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
+
+        // Base query for fetching events
+        $query = "
             SELECT e.*, s.title as symposium_name
             FROM symposium_events e
             JOIN symposiums s ON e.symposium_id = s.symposium_id
             WHERE e.is_locked = 1
-            ORDER BY e.event_date DESC, e.start_time DESC
-        ");
-        $stmt->execute();
+        ";
+        $params = [];
+
+        if ($symposiumIdFilter) {
+            $query .= " AND e.symposium_id = :symposium_id";
+            $params[':symposium_id'] = $symposiumIdFilter;
+        }
+
+        $query .= " ORDER BY e.event_date DESC, e.start_time DESC";
+        
+        $stmt = $db->prepare($query);
+        $stmt->execute($params);
         $events = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
 
         $this->render('results.index', [
             'page_title' => 'Evaluation & Results',
-            'events' => $events
+            'events' => $events,
+            'symposiums' => $symposiums,
+            'selected_symposium_id' => $symposiumIdFilter
         ], 'dashboard');
     }
 

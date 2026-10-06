@@ -206,18 +206,33 @@ final class DashboardController extends BaseController
         $user   = Session::get('user', []);
         $userId = (int) ($user['user_id'] ?? 0);
 
+        $symposiumModel = new \App\Models\SymposiumModel();
+        
+        $mySymposiums = $symposiumModel->getAll(null, null, null, null, null, $userId);
+        $approvedSymposiums = $symposiumModel->getAll(null, null, null, 'Approved', null, $userId);
+
         $symposiumId = null;
-        if (isset($_GET['symposium_id']) && is_numeric($_GET['symposium_id'])) {
-            $symposiumId = (int)$_GET['symposium_id'];
+        if (isset($_GET['symposium_id'])) {
+            if (is_numeric($_GET['symposium_id'])) {
+                $symposiumId = (int)$_GET['symposium_id'];
+            }
+            // If empty string ("All Symposiums"), it stays null.
+        } elseif (!empty($mySymposiums)) {
+            // Default: Find the most recently created symposium
+            $latestId = null;
+            $latestDate = '';
+            foreach ($mySymposiums as $sym) {
+                if (($sym['created_at'] ?? '') >= $latestDate) {
+                    $latestDate = $sym['created_at'] ?? '';
+                    $latestId = (int)$sym['symposium_id'];
+                }
+            }
+            $symposiumId = $latestId;
         }
 
         $ficStats = $this->dashboardService->getFicStats($userId);
         $stats = array_merge($this->dashboardService->getStaffCoordinatorStats($userId, $symposiumId), $ficStats);
 
-        $symposiumModel = new \App\Models\SymposiumModel();
-        
-        $mySymposiums = $symposiumModel->getAll(null, null, null, null, null, $userId);
-        $approvedSymposiums = $symposiumModel->getAll(null, null, null, 'Approved', null, $userId);
 
         $upcomingEvents = $this->dashboardService->getUpcomingEvents($userId, 'Staff Coordinator');
 

@@ -1361,6 +1361,7 @@ final class CertificateController extends BaseController
      */
     private static function toRomanYear(int|string $year): string
     {
+        $trimmed = trim((string)$year);
         $map = [
             '1' => 'I',  '2' => 'II',  '3' => 'III',  '4' => 'IV',
             'I' => 'I',  'II' => 'II', 'III' => 'III', 'IV' => 'IV',

@@ -391,10 +391,10 @@ $approvedNeeding = (int) ($stats['approved_symposiums_needing_scheduling'] ?? 0)
                 <div class="mt-3">
                     <p class="small fw-semibold text-muted mb-2">Select a Symposium to schedule events:</p>
                     <form action="<?= base_url() ?>/symposiums/scheduling" method="GET" class="d-flex gap-2 align-items-center">
-                        <select name="symposium_id" class="form-select form-select-sm" style="max-width:300px;" required>
+                        <select name="symposium_id" class="form-select form-select-sm" style="max-width:300px;" required onchange="window.location.href='<?= base_url() ?>/dashboard/staff-coordinator?symposium_id=' + this.value">
                             <option value="">-- Choose Symposium --</option>
                             <?php foreach ($approvedSymposiums as $symposium): ?>
-                                <option value="<?= $symposium['symposium_id'] ?>">
+                                <option value="<?= $symposium['symposium_id'] ?>" <?= (($selectedSymposiumId ?? null) == $symposium['symposium_id']) ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($symposium['symposium_code'] ?? $symposium['title']) ?>
                                 </option>
                             <?php endforeach; ?>

@@ -99,12 +99,12 @@ $maxScore = number_format((float)($snapshot['maximum_score'] ?? 100), 2);
                                         <td class="fw-semibold"><?= number_format((float)$r['total_score'], 2) ?></td>
                                         <td class="fw-semibold"><?= number_format((float)$r['average_score'], 2) ?></td>
                                         <td class="pe-3 text-end">
-                                            <?php if ($r['result_status'] === 'First Place'): ?>
-                                                <span class="badge bg-warning bg-opacity-25 text-dark rounded-pill px-3 py-2 fw-semibold">First Place</span>
-                                            <?php elseif ($r['result_status'] === 'Second Place'): ?>
-                                                <span class="badge bg-secondary bg-opacity-25 text-secondary rounded-pill px-3 py-2 fw-semibold">Second Place</span>
-                                            <?php elseif ($r['result_status'] === 'Third Place'): ?>
-                                                <span class="badge bg-orange bg-opacity-25 text-white rounded-pill px-3 py-2 fw-semibold" style="background-color: #fd7e14;">Third Place</span>
+                                            <?php if ($r['result_status'] === '1st Place'): ?>
+                                                <span class="badge bg-warning bg-opacity-25 text-dark rounded-pill px-3 py-2 fw-semibold">1st Place</span>
+                                            <?php elseif ($r['result_status'] === '2nd Place'): ?>
+                                                <span class="badge bg-secondary bg-opacity-25 text-secondary rounded-pill px-3 py-2 fw-semibold">2nd Place</span>
+                                            <?php elseif ($r['result_status'] === '3rd Place'): ?>
+                                                <span class="badge bg-orange bg-opacity-25 text-white rounded-pill px-3 py-2 fw-semibold" style="background-color: #fd7e14;">3rd Place</span>
                                             <?php else: ?>
                                                 <span class="badge bg-light text-secondary rounded-pill px-3 py-2"><?= htmlspecialchars($r['result_status'] ?? 'Participant') ?></span>
                                             <?php endif; ?>

@@ -155,8 +155,14 @@ declare(strict_types=1);
                                             } else {
                                                 $badgeStyle = 'class="badge bg-dark"'; // Fallback
                                             }
+                                            $rankStr = match ($rank) {
+                                                1 => '1st Place',
+                                                2 => '2nd Place',
+                                                3 => '3rd Place',
+                                                default => $rank . 'th Place'
+                                            };
                                         ?>
-                                            <span <?= $badgeStyle ?>><i class="bi bi-trophy"></i> <?= htmlspecialchars((string)$rank, ENT_QUOTES, 'UTF-8') ?> Rank</span>
+                                            <span <?= $badgeStyle ?>><i class="bi bi-trophy"></i> <?= $rankStr ?></span>
                                         <?php else: ?>
                                             <span class="badge bg-info text-dark">Participant</span>
                                         <?php endif; ?>

@@ -15,7 +15,6 @@ use App\Models\AuditLogModel;
 use App\Helpers\RoleHelper;
 use App\Services\CertificateRankService;
 use RuntimeException;
-use ZipArchive;
 use setasign\Fpdi\Fpdi;
 
 final class CertificatePackageService
@@ -102,10 +101,6 @@ final class CertificatePackageService
      */
     public function buildEventZip(int $eventId, array $user, string $typeFilter = 'All'): string
     {
-        if (!class_exists('ZipArchive')) {
-            throw new RuntimeException('PHP ZipArchive extension is not available.');
-        }
-
         $event = $this->eventModel->findById($eventId);
         if (!$event) {
             throw new RuntimeException('Event not found.');
@@ -147,10 +142,7 @@ final class CertificatePackageService
         $zipName = 'NexusCore_' . $safeSympName . '_' . $safeEventName . '_Certificates_' . time() . '.zip';
         $zipPath = $tmpDir . $zipName;
 
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Failed to create ZIP archive.');
-        }
+        $zip = new \PhpZip\ZipFile();
 
         $folderName = $safeEventName . '/';
         $zip->addEmptyDir($folderName);
@@ -182,12 +174,12 @@ final class CertificatePackageService
             }
         }
 
-        $zip->close();
-
         if ($included === 0) {
-            @unlink($zipPath);
             throw new RuntimeException('No valid physical certificate files found.');
         }
+
+        $zip->saveAsFile($zipPath);
+        $zip->close();
 
         $this->auditModel->log(
             'generated_certificates', 
@@ -205,10 +197,6 @@ final class CertificatePackageService
      */
     public function buildSymposiumPackage(int $symposiumId, array $user): string
     {
-        if (!class_exists('ZipArchive')) {
-            throw new RuntimeException('PHP ZipArchive extension is not available.');
-        }
-
         $symposium = $this->sympModel->findById($symposiumId);
         if (!$symposium) {
             throw new RuntimeException('Symposium not found.');
@@ -272,10 +260,7 @@ final class CertificatePackageService
         $zipName = 'NexusCore_' . $safeSympName . '_Complete_Certificate_Package_' . time() . '.zip';
         $zipPath = $tmpDir . $zipName;
 
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-            throw new RuntimeException('Failed to create ZIP archive.');
-        }
+        $zip = new \PhpZip\ZipFile();
 
         $included = 0;
         foreach ($validCertsByEvent as $data) {
@@ -312,12 +297,12 @@ final class CertificatePackageService
         // Add manifest
         $zip->addFromString('MANIFEST.csv', implode("\n", $manifestLines));
 
-        $zip->close();
-
         if ($included === 0) {
-            @unlink($zipPath);
             throw new RuntimeException('No valid physical certificate files found in the package.');
         }
+
+        $zip->saveAsFile($zipPath);
+        $zip->close();
 
         $this->auditModel->log(
             'symposiums', 

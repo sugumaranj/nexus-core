@@ -27,7 +27,6 @@ use App\Models\GeneratedCertificateModel;
 use App\Models\AuditLogModel;
 use App\Models\TeamMemberModel;
 use RuntimeException;
-use ZipArchive;
 
 final class CertificateDownloadService
 {
@@ -96,17 +95,10 @@ final class CertificateDownloadService
      * @param  array $certIds  Array of certificate_id integers
      * @param  array $user     Session user array
      * @return string          Absolute path to the generated ZIP file
-     * @throws RuntimeException if ZipArchive is unavailable or ZIP creation fails
+     * @throws RuntimeException if ZIP creation fails
      */
     public function buildZip(array $certIds, array $user): string
     {
-        if (!class_exists('ZipArchive')) {
-            throw new RuntimeException(
-                'PHP ZipArchive extension is not available. '
-                . 'Enable the zip extension in php.ini to use bulk download.'
-            );
-        }
-
         if (empty($certIds)) {
             throw new RuntimeException('No certificates selected for download.');
         }
@@ -124,12 +116,7 @@ final class CertificateDownloadService
         }
         $zipPath = $tmpDir . 'bulk_download_' . time() . '_' . substr(md5(implode(',', $certIds)), 0, 8) . '.zip';
 
-        $zip = new ZipArchive();
-        $result = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
-
-        if ($result !== true) {
-            throw new RuntimeException('Failed to create ZIP archive. ZipArchive error code: ' . $result);
-        }
+        $zip = new \PhpZip\ZipFile();
 
         $included = 0;
         foreach ($certs as $cert) {
@@ -145,12 +132,12 @@ final class CertificateDownloadService
             $included++;
         }
 
-        $zip->close();
-
         if ($included === 0) {
-            @unlink($zipPath);
             throw new RuntimeException('No certificate files could be found on disk. The ZIP could not be created.');
         }
+
+        $zip->saveAsFile($zipPath);
+        $zip->close();
 
         return $zipPath;
     }

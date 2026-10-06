@@ -366,8 +366,9 @@ final class DashboardService
 
             'dept_registrations'  => $this->countWith("
                 SELECT COUNT(*) FROM applications a
-                INNER JOIN competitions c ON c.competition_id = a.competition_id
-                INNER JOIN symposium_departments sd ON sd.symposium_id = c.symposium_id
+                LEFT JOIN competitions c ON c.competition_id = a.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposium_departments sd ON sd.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE sd.department_id IN ($inClause)
             ", []),
 
@@ -444,16 +445,18 @@ final class DashboardService
             'total_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE s.created_by = :user_id $symFilter
             ", $regParams),
 
             'pending_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE a.application_status = 'Pending' 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -461,8 +464,9 @@ final class DashboardService
             'approved_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE a.application_status = 'Approved' 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -470,8 +474,9 @@ final class DashboardService
             'rejected_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE a.application_status = 'Rejected' 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -479,8 +484,9 @@ final class DashboardService
             'withdrawn_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE a.application_status = 'Withdrawn' 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -488,8 +494,9 @@ final class DashboardService
             'cancelled_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE a.application_status = 'Cancelled' 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -497,8 +504,9 @@ final class DashboardService
             'today_registrations' => $this->countWith("
                 SELECT COUNT(DISTINCT a.application_id) 
                 FROM applications a
-                INNER JOIN competitions c ON a.competition_id = c.competition_id
-                INNER JOIN symposiums s ON c.symposium_id = s.symposium_id
+                LEFT JOIN competitions c ON a.competition_id = c.competition_id
+                LEFT JOIN symposium_events se ON a.symposium_event_id = se.symposium_event_id
+                INNER JOIN symposiums s ON s.symposium_id = COALESCE(c.symposium_id, se.symposium_id)
                 WHERE DATE(a.applied_at) = CURDATE() 
                   AND s.created_by = :user_id $symFilter
             ", $regParams),
@@ -514,8 +522,8 @@ final class DashboardService
                 JOIN symposiums s ON s.symposium_id = se.symposium_id
                 WHERE s.status = 'Approved'
                   AND se.schedule_status = 'Unscheduled'
-                  AND s.created_by = :user_id
-            ", [':user_id' => $userId]),
+                  AND s.created_by = :user_id $symFilter
+            ", $regParams),
 
             'events_scheduled' => $this->countWith("
                 SELECT COUNT(se.symposium_event_id)
@@ -523,16 +531,16 @@ final class DashboardService
                 JOIN symposiums s ON s.symposium_id = se.symposium_id
                 WHERE s.status = 'Approved'
                   AND se.schedule_status IN ('Scheduled','Rescheduled')
-                  AND s.created_by = :user_id
-            ", [':user_id' => $userId]),
+                  AND s.created_by = :user_id $symFilter
+            ", $regParams),
 
             'total_events_in_approved' => $this->countWith("
                 SELECT COUNT(se.symposium_event_id)
                 FROM symposium_events se
                 JOIN symposiums s ON s.symposium_id = se.symposium_id
                 WHERE s.status = 'Approved'
-                  AND s.created_by = :user_id
-            ", [':user_id' => $userId]),
+                  AND s.created_by = :user_id $symFilter
+            ", $regParams),
 
             'approved_symposiums_needing_scheduling' => $this->countWith("
                 SELECT COUNT(DISTINCT s.symposium_id)

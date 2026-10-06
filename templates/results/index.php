@@ -1,9 +1,22 @@
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
         <div>
             <h4 class="mb-1 fw-bold text-dark">Evaluation & Results</h4>
             <p class="text-muted mb-0">View final published results and cryptographic rankings for completed events.</p>
         </div>
+        <?php if (!empty($symposiums)): ?>
+            <form method="GET" action="<?= base_url('/evaluation/results') ?>" class="d-flex align-items-center">
+                <label for="symposium_id" class="me-2 fw-semibold text-secondary text-nowrap">Filter by:</label>
+                <select name="symposium_id" id="symposium_id" class="form-select shadow-sm" onchange="this.form.submit()" style="min-width: 200px;">
+                    <option value="">All Symposiums</option>
+                    <?php foreach ($symposiums as $sym): ?>
+                        <option value="<?= $sym['symposium_id'] ?>" <?= (isset($selected_symposium_id) && $selected_symposium_id == $sym['symposium_id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($sym['title']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        <?php endif; ?>
     </div>
 
     <?php if (empty($events)): ?>

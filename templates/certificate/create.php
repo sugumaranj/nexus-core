@@ -60,7 +60,7 @@ declare(strict_types=1);
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="rank_display_mode" id="rank_label" value="label" required>
                                 <label class="form-check-label" for="rank_label">
-                                    <strong>Label</strong> - Displays the rank as a text label (e.g. "1st Place").
+                                    <strong>Label</strong> - Displays the rank as a text label (e.g. "1st").
                                 </label>
                             </div>
                             <div class="form-check">
