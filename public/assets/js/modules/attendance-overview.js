@@ -2,6 +2,53 @@
     'use strict';
 
     document.addEventListener('DOMContentLoaded', async () => {
+        // Symposium Filter Logic
+        const filterSelect = document.getElementById('symposium-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => {
+                const selectedSymposium = e.target.value;
+                const items = document.querySelectorAll('.event-item');
+                
+                items.forEach(item => {
+                    const itemSymposium = item.getAttribute('data-symposium');
+                    if (selectedSymposium === '' || itemSymposium === selectedSymposium) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Intercept PDF Export clicks when offline
+        document.querySelectorAll('a[href*="/attendance/export?id="]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                if (!navigator.onLine) {
+                    e.preventDefault();
+                    window.nexusUI?.showToast("Offline Mode: PDF export is not available. Open the event to print the Mark Sheet instead.", "warning", 5000);
+                }
+            });
+        });
+
+        // ----------------------------------------------------------
+        // Pre-fetch Mark Sheet pages for seamless offline access
+        // ----------------------------------------------------------
+        if (navigator.onLine) {
+            const prefetchPages = () => {
+                document.querySelectorAll('a[href*="/attendance/event?id="]').forEach(link => {
+                    // Fetching with text/html Accept header triggers the SW PAGES_CACHE
+                    fetch(link.href, { headers: { 'Accept': 'text/html' }, priority: 'low' })
+                        .catch(() => {});
+                });
+            };
+
+            if (window.requestIdleCallback) {
+                window.requestIdleCallback(prefetchPages, { timeout: 2000 });
+            } else {
+                setTimeout(prefetchPages, 1000);
+            }
+        }
+
         if (!window.NexusAttendanceDB) return;
 
         try {
@@ -25,53 +72,6 @@
             }
         } catch (err) {
             console.error('[AttendanceOverview] Failed to load offline records:', err);
-        }
-
-        // ----------------------------------------------------------
-        // Pre-fetch Mark Sheet pages for seamless offline access
-        // ----------------------------------------------------------
-        if (navigator.onLine) {
-            const prefetchPages = () => {
-                document.querySelectorAll('a[href*="/attendance/event?id="]').forEach(link => {
-                    // Fetching with text/html Accept header triggers the SW PAGES_CACHE
-                    fetch(link.href, { headers: { 'Accept': 'text/html' }, priority: 'low' })
-                        .catch(() => {});
-                });
-            };
-
-            if (window.requestIdleCallback) {
-                window.requestIdleCallback(prefetchPages, { timeout: 2000 });
-            } else {
-                setTimeout(prefetchPages, 1000);
-            }
-        }
-
-        // Intercept PDF Export clicks when offline
-        document.querySelectorAll('a[href*="/attendance/export?id="]').forEach(link => {
-            link.addEventListener('click', (e) => {
-                if (!navigator.onLine) {
-                    e.preventDefault();
-                    window.nexusUI?.showToast("Offline Mode: PDF export is not available. Open the event to print the Mark Sheet instead.", "warning", 5000);
-                }
-            });
-        });
-
-        // Symposium Filter Logic
-        const filterSelect = document.getElementById('symposium-filter');
-        if (filterSelect) {
-            filterSelect.addEventListener('change', (e) => {
-                const selectedSymposium = e.target.value;
-                const items = document.querySelectorAll('.event-item');
-                
-                items.forEach(item => {
-                    const itemSymposium = item.getAttribute('data-symposium');
-                    if (selectedSymposium === '' || itemSymposium === selectedSymposium) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-            });
         }
     });
 
