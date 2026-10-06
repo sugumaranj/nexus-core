@@ -55,6 +55,24 @@
                 }
             });
         });
+
+        // Symposium Filter Logic
+        const filterSelect = document.getElementById('symposium-filter');
+        if (filterSelect) {
+            filterSelect.addEventListener('change', (e) => {
+                const selectedSymposium = e.target.value;
+                const items = document.querySelectorAll('.event-item');
+                
+                items.forEach(item => {
+                    const itemSymposium = item.getAttribute('data-symposium');
+                    if (selectedSymposium === '' || itemSymposium === selectedSymposium) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
     });
 
     function processEventStats(eid, records) {

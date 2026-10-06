@@ -15,6 +15,16 @@ declare(strict_types=1);
 $events    = $events    ?? [];
 $role         = $role         ?? '';
 $csrfToken    = $csrfToken    ?? '';
+
+// Extract unique symposiums for the filter
+$symposiums = [];
+foreach ($events as $e) {
+    $sTitle = $e['symposium_title'] ?? 'Unknown Symposium';
+    if (!in_array($sTitle, $symposiums, true)) {
+        $symposiums[] = $sTitle;
+    }
+}
+sort($symposiums);
 ?>
 
 <!-- ======================================================= -->
@@ -35,7 +45,7 @@ $csrfToken    = $csrfToken    ?? '';
 <!-- ======================================================= -->
 <!-- Page Header                                              -->
 <!-- ======================================================= -->
-<div class="d-flex justify-content-between align-items-start mb-4">
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
     <div>
         <h2 class="fw-bold mb-1">
             <i class="bi bi-calendar2-check text-primary me-2"></i>Attendance
@@ -44,7 +54,17 @@ $csrfToken    = $csrfToken    ?? '';
             Manage attendance for your assigned events.
         </p>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex flex-wrap gap-2 align-items-center">
+        <?php if (!empty($symposiums) && count($symposiums) > 1): ?>
+        <select id="symposium-filter" class="form-select form-select-sm" style="min-width: 200px;">
+            <option value="">All Symposiums</option>
+            <?php foreach ($symposiums as $symp): ?>
+                <option value="<?= htmlspecialchars($symp, ENT_QUOTES, 'UTF-8') ?>">
+                    <?= htmlspecialchars($symp, ENT_QUOTES, 'UTF-8') ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <?php endif; ?>
         <a href="<?= base_url() ?>/dashboard" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Back
         </a>
@@ -57,7 +77,7 @@ $csrfToken    = $csrfToken    ?? '';
 <!-- ======================================================= -->
 <!-- Competitions Grid                                        -->
 <!-- ======================================================= -->
-<div class="row g-4">
+<div class="row g-4" id="events-grid">
 
 <?php if (empty($events)): ?>
     <div class="col-12 text-center py-5">
@@ -91,7 +111,7 @@ $csrfToken    = $csrfToken    ?? '';
         $statusBadge = $statusClasses[$event['status'] ?? ''] ?? 'secondary';
         $canOpenSession = in_array($event['status'] ?? '', ['Registration Closed','Running','Completed'], true);
     ?>
-    <div class="col-md-6 col-xl-4">
+    <div class="col-md-6 col-xl-4 event-item" data-symposium="<?= htmlspecialchars($event['symposium_title'] ?? 'Unknown Symposium', ENT_QUOTES, 'UTF-8') ?>">
         <div class="card h-100 border-0 shadow-sm attendance-event-card" id="event-card-<?= $eid ?>">
 
             <!-- Card Header -->
