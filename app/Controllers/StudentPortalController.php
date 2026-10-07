@@ -88,7 +88,7 @@ class StudentPortalController extends BaseController
         $student     = $studentAuth->student();
 
         // Fetch symposiums that are visible to students (Approved or beyond)
-        $activeSymposiums = $this->sympModel->getApprovedForStudents();
+        $activeSymposiums = $this->sympModel->getApprovedForStudents(true);
         foreach ($activeSymposiums as &$symp) {
             $symp['has_rescheduled'] = false;
             $events = $this->eventModel->getScheduledEvents((int)$symp['symposium_id']);
@@ -166,7 +166,7 @@ class StudentPortalController extends BaseController
      */
     public function symposiums(): void
     {
-        $symposiums = $this->sympModel->getApprovedForStudents();
+        $symposiums = $this->sympModel->getApprovedForStudents(true);
 
         $this->render('student.symposiums', [
             'pageTitle'  => 'Symposiums',

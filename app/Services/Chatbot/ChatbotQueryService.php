@@ -37,7 +37,7 @@ final class ChatbotQueryService
     public function getVisibleSymposiums(): array
     {
         try {
-            return $this->symposiumModel->getApprovedForStudents();
+            return $this->symposiumModel->getApprovedForStudents(true);
         } catch (Throwable $e) {
             error_log("ChatbotQueryService error (getVisibleSymposiums): " . $e->getMessage());
             return [];

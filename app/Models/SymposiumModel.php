@@ -753,7 +753,7 @@ final class SymposiumModel extends BaseModel
      *
      * @return array
      */
-    public function getApprovedForStudents(): array
+    public function getApprovedForStudents(bool $activeOnly = false): array
     {
         $sql = "
             SELECT 
@@ -762,8 +762,13 @@ final class SymposiumModel extends BaseModel
                 registration_start, registration_end, event_start_date, event_end_date, status
             FROM symposiums
             WHERE status IN ('Approved', 'Scheduling Complete', 'Registration Open', 'Registration Closed', 'Completed')
-            ORDER BY event_start_date DESC, title ASC
         ";
+        
+        if ($activeOnly) {
+            $sql .= " AND status != 'Completed' AND COALESCE(event_end_date, event_start_date) >= CURDATE()";
+        }
+        
+        $sql .= " ORDER BY event_start_date DESC, title ASC";
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute();
