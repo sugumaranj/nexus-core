@@ -258,7 +258,7 @@ $judgingMethod = htmlspecialchars($event['judging_method'] ?? 'Marks');
                                         <td><small class="text-muted"><?= htmlspecialchars($member['department'] ?? $member['department_name'] ?? $member['member_dept'] ?? '') ?></small></td>
                                         <?php if ($idx === 0): ?>
                                         <td class="text-center" rowspan="<?= $rowspan ?>">
-                                            <div class="d-flex justify-content-center">
+                                            <div class="d-flex flex-column align-items-center justify-content-center">
                                                 <input type="hidden" name="app_ids[]" value="<?= $appId ?>">
                                                 <input type="number" step="0.01" min="0" max="<?= $maxScore ?>" 
                                                        name="marks[<?= $appId ?>]" 
@@ -266,6 +266,7 @@ $judgingMethod = htmlspecialchars($event['judging_method'] ?? 'Marks');
                                                        placeholder="0-<?= $maxScore ?>" 
                                                        value="<?= $currentMark ?>" 
                                                        <?= $isLocked ? 'disabled' : '' ?>>
+                                                <small class="text-muted mt-1" style="font-size: 0.75rem;">Out of <?= $maxScore ?></small>
                                             </div>
                                         </td>
                                         <?php endif; ?>
