@@ -162,12 +162,29 @@ final class JudgeController extends BaseController
             $feedbackList    = $feedbackService->getEventFeedback($eventId, 50, 0);
         }
 
+        // Fetch results if published
+        $publishedResults = [];
+        $resolvedResultParticipants = [];
+        $engineSnapshot = [];
+        
+        if ((bool)$event['is_locked']) {
+            $publishedResults = $evalModel->getPublishedResults($eventId);
+            $resolvedResultParticipants = $resolver->resolveParticipantsForApplications(array_values($publishedResults));
+            
+            if (!empty($publishedResults) && !empty($publishedResults[0]['statistical_snapshot'])) {
+                $engineSnapshot = json_decode($publishedResults[0]['statistical_snapshot'], true) ?: [];
+            }
+        }
+
         $this->render('judge.evaluate', [
             'pageTitle'            => 'Evaluate - ' . $event['event_name'],
             'user'                 => $user,
             'event'                => $event,
             'participants'         => $participants,
             'resolvedParticipants' => $resolvedParticipants,
+            'publishedResults'     => $publishedResults,
+            'resolvedResultParticipants' => $resolvedResultParticipants,
+            'engineSnapshot'       => $engineSnapshot,
             'givenMarks'           => $givenMarks,
             'supportsAttendance'   => $supportsAttendance,
             'attendanceLocked'     => $attendanceLocked,
@@ -176,7 +193,7 @@ final class JudgeController extends BaseController
             'windowExpired'        => $windowExpired,
             'hasFinalSubmission'   => $hasFinalSubmission,
             'isLocked'             => $isLocked,
-            'maxScore'             => $event['snapshot_evaluation'] ? (json_decode($event['snapshot_evaluation'], true)['maximum_score'] ?? 100) : 100,
+            'maxScore'             => (float)($event['maximum_score'] ?? 100.00),
             'guidelines'           => $event['snapshot_evaluation'] ? (json_decode($event['snapshot_evaluation'], true)['scoring_guidelines'] ?? '') : '',
             'feedbackFinalized'    => $feedbackFinalized,
             'feedbackSummary'      => $feedbackSummary,

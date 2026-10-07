@@ -1,7 +1,7 @@
 <?php
 $eventDate = !empty($event['event_date']) ? date('M d, Y', strtotime($event['event_date'])) : 'TBD';
 $isLocked = (bool)$event['is_locked'];
-$maxScore = number_format((float)($snapshot['maximum_score'] ?? 100), 2);
+$maxScore = number_format((float)($event['maximum_score'] ?? 100), 2);
 ?>
 
 <div class="container-fluid py-4">

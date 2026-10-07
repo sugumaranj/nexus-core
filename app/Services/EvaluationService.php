@@ -108,8 +108,7 @@ final class EvaluationService
             return ['success' => false, 'message' => 'Evaluation is locked for this event.'];
         }
 
-        $snapshotEval = !empty($event['snapshot_evaluation']) ? json_decode($event['snapshot_evaluation'], true) : [];
-        $maxScore = (float)($snapshotEval['maximum_score'] ?? 100.00);
+        $maxScore = (float)($event['maximum_score'] ?? 100.00);
 
         if ($mark < 0 || $mark > $maxScore) {
             return ['success' => false, 'message' => "Mark must be between 0 and {$maxScore}."];
@@ -175,8 +174,7 @@ final class EvaluationService
             return ['success' => false, 'message' => 'Evaluation is locked for this event.'];
         }
 
-        $snapshotEval = !empty($event['snapshot_evaluation']) ? json_decode($event['snapshot_evaluation'], true) : [];
-        $maxScore = (float)($snapshotEval['maximum_score'] ?? 100.00);
+        $maxScore = (float)($event['maximum_score'] ?? 100.00);
 
         // Validate Judge Assignment
         if (!$this->judgeModel->isAssigned($symposiumEventId, $judgeId)) {
@@ -251,8 +249,7 @@ final class EvaluationService
             return $validation; // Block publication
         }
 
-        $snapshotEval = !empty($event['snapshot_evaluation']) ? json_decode($event['snapshot_evaluation'], true) : [];
-        $maxScore = (float)($snapshotEval['maximum_score'] ?? 100.00);
+        $maxScore = (float)($event['maximum_score'] ?? 100.00);
 
         // START TRANSACTION
         $this->db->beginTransaction();
@@ -399,10 +396,7 @@ final class EvaluationService
         }
 
         // 5. Run engine (read-only — no DB writes)
-        $snapshotEval = !empty($event['snapshot_evaluation'])
-            ? json_decode($event['snapshot_evaluation'], true)
-            : [];
-        $maxScore = (float) ($snapshotEval['maximum_score'] ?? 100.00);
+        $maxScore = (float)($event['maximum_score'] ?? 100.00);
 
         $engineResult = $this->evaluationEngine->runPipeline(
             $symposiumEventId,

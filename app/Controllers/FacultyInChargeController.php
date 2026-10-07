@@ -139,15 +139,34 @@ final class FacultyInChargeController extends BaseController
             $feedbackList    = $feedbackService->getEventFeedback($eventId, 50, 0);
         }
 
+        // Judge Progress Tracking & Evaluations
+        $evalService = new \App\Services\EvaluationService();
+        $evalModel = new \App\Models\EvaluationModel();
+        
+        $participants = $evalService->getEligibleParticipants($eventId);
+        $totalParticipants = count($participants);
+        
+        $resolver = new \App\Services\TeamResolverService();
+        $resolvedParticipants = $resolver->resolveParticipantsForApplications(array_values($participants));
+        
+        foreach ($detail['current_judges'] as &$judge) {
+            $judgeId = (int)$judge['user_id'];
+            $judge['progress'] = $evalModel->getJudgeProgress($eventId, $judgeId, $totalParticipants);
+            $judge['evaluations'] = $evalModel->getEvaluationsByJudge($eventId, $judgeId);
+        }
+        unset($judge);
+
         $this->render('fic.event_detail', [
-            'pageTitle'         => 'Manage Event — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
-            'user'              => $user,
-            'event'             => $detail['event'],
-            'currentFic'        => $detail['current_fic'],
-            'currentJudges'     => $detail['current_judges'],
-            'staffList'         => $detail['assignable_staff'],
-            'regCount'          => $detail['registration_count'],
-            'stages'            => $detail['stages'] ?? [],
+            'pageTitle'            => 'Manage Event — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
+            'user'                 => $user,
+            'event'                => $detail['event'],
+            'currentFic'           => $detail['current_fic'],
+            'currentJudges'        => $detail['current_judges'],
+            'staffList'            => $detail['assignable_staff'],
+            'regCount'             => $detail['registration_count'],
+            'stages'               => $detail['stages'] ?? [],
+            'participants'         => $participants,
+            'resolvedParticipants' => $resolvedParticipants,
             'attendanceLocked'  => $attendanceLocked,
             'finalizedSession'  => $finalizedSession,
             'feedbackFinalized' => $feedbackFinalized,

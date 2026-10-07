@@ -193,23 +193,28 @@ final class EvaluationModel extends BaseModel
      * 
      * @return array
      */
-    public function getJudgeProgress(int $competitionId, int $judgeId, int $totalParticipants): array
+    public function getJudgeProgress(int $symposiumEventId, int $judgeId, int $totalParticipants): array
     {
         $sql = "
-            SELECT COUNT(*) as evaluated_count
+            SELECT 
+                SUM(CASE WHEN status = 'Submitted' THEN 1 ELSE 0 END) as submitted_count,
+                SUM(CASE WHEN status = 'Draft' THEN 1 ELSE 0 END) as draft_count
             FROM competition_evaluations ce
-            JOIN applications a ON ce.application_id = a.application_id
-            WHERE a.competition_id = :cid AND ce.judge_id = :jid AND ce.status = 'Submitted'
+            WHERE ce.symposium_event_id = :eid AND ce.judge_id = :jid
         ";
         $stmt = $this->db->prepare($sql);
-        $stmt->execute(['cid' => $competitionId, 'jid' => $judgeId]);
-        $evaluatedCount = (int)$stmt->fetchColumn();
+        $stmt->execute(['eid' => $symposiumEventId, 'jid' => $judgeId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $submittedCount = (int)($row['submitted_count'] ?? 0);
+        $draftCount = (int)($row['draft_count'] ?? 0);
         
         return [
             'total_assigned' => $totalParticipants,
-            'evaluated' => $evaluatedCount,
-            'remaining' => max(0, $totalParticipants - $evaluatedCount),
-            'is_complete' => $evaluatedCount >= $totalParticipants && $totalParticipants > 0
+            'evaluated' => $submittedCount,
+            'drafts' => $draftCount,
+            'remaining' => max(0, $totalParticipants - $submittedCount),
+            'is_complete' => $submittedCount >= $totalParticipants && $totalParticipants > 0
         ];
     }
     /**
