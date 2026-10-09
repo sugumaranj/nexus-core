@@ -94,7 +94,7 @@ class EvaluationEngine
             'participant_count' => count($participants),
             'judge_count' => $judgeCount,
             'precision_policy' => ['raw_input' => 2, 'internal_calculation' => $this->scale, 'ranking_comparison' => $this->scale, 'display' => 2],
-            'policies' => ['tie_hierarchy' => ['bcmath_arithmetic_average'], 'ranking' => 'competition_shared_ranks'],
+            'policies' => ['tie_hierarchy' => ['bcmath_arithmetic_average'], 'ranking' => 'dense_ranking'],
             'judges' => $judges,
             'participants' => $snapshotParticipants
         ];

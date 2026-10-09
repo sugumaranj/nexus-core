@@ -478,5 +478,5 @@ final class FacultyInChargeController extends BaseController
     // =========================================================================
     // TIE RESOLVER - DEPRECATED
     // =========================================================================
-    // Tie resolution is now automatic via standard competition ranking.
+    // Tie resolution is now automatic via dense ranking.
 }

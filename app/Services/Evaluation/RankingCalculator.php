@@ -13,7 +13,7 @@ class RankingCalculator
     }
 
     /**
-     * Sorts the results and assigns ranks using standard competition ranking (1, 1, 3, 4).
+     * Sorts the results and assigns ranks using dense ranking (1, 1, 2, 3).
      * 
      * @param array &$results
      * @return bool Always returns true as ties are allowed.
@@ -42,7 +42,7 @@ class RankingCalculator
                 if ($cmp === 0) {
                     $p['rank_position'] = $prev['rank_position']; // Shared rank
                 } else {
-                    $rank = $index + 1;
+                    $rank = $prev['rank_position'] + 1;
                     $p['rank_position'] = $rank;
                 }
             } else {
