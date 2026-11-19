@@ -615,7 +615,7 @@ $busyCount     = count(array_filter($staffList, fn($s) => $s['availability_statu
                         </div>
                     <?php else: ?>
                         <?php foreach ($stages as $stage): ?>
-                            <div class="stage-row card shadow-sm border-0">
+                            <div class="stage-row card shadow-sm border-0" data-stage-id="<?= (int)($stage['stage_id'] ?? 0) ?>">
                                 <div class="card-body p-3 row g-2 align-items-end">
                                     <div class="col-md-3">
                                         <label class="form-label small text-muted mb-1">Stage Name</label>
@@ -656,14 +656,40 @@ $busyCount     = count(array_filter($staffList, fn($s) => $s['availability_statu
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </div>
+                                    <?php if (($stage['stage_name'] ?? '') === 'Digital Prelims' && !empty($stage['stage_id'])): ?>
+                                    <div class="col-12 pt-2 mt-2 border-top d-flex flex-wrap gap-2">
+                                        <a href="<?= base_url('/fic/prelims/manage?event_id=' . $eid . '&stage_id=' . (int)$stage['stage_id']) ?>" class="btn btn-sm btn-primary fw-semibold">
+                                            <i class="bi bi-journal-check me-1"></i>Manage Digital Prelims Quiz
+                                        </a>
+                                        <a href="<?= base_url('/attendance/event?id=' . $eid . '&round=prelims') ?>" class="btn btn-sm btn-outline-success">
+                                            <i class="bi bi-person-check me-1"></i>Prelims Attendance
+                                        </a>
+                                        <a href="<?= base_url('/reports/main-event?event_id=' . $eid) ?>" class="btn btn-sm btn-outline-dark">
+                                            <i class="bi bi-file-earmark-bar-graph me-1"></i>Main Event Report
+                                        </a>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
                     <?php endif; ?>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-primary" id="addStageBtn">
-                    <i class="bi bi-plus-circle me-1"></i> Add Stage
-                </button>
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="addStageBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Add Stage
+                    </button>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a href="<?= base_url('/fic/prelims/manage?event_id=' . $eid) ?>" class="btn btn-sm btn-success fw-semibold shadow-sm">
+                            <i class="bi bi-file-earmark-arrow-up me-1"></i>Setup Prelims Quiz &amp; Upload PDFs
+                        </a>
+                        <a href="<?= base_url('/attendance/event?id=' . $eid . '&round=prelims') ?>" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-person-check me-1"></i>Prelims Attendance
+                        </a>
+                        <a href="<?= base_url('/reports/main-event?event_id=' . $eid) ?>" class="btn btn-sm btn-outline-dark">
+                            <i class="bi bi-file-earmark-bar-graph me-1"></i>Main Event Report
+                        </a>
+                    </div>
+                </div>
             </div>
 
             <!-- Not Required info panel -->
@@ -959,6 +985,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const stages = [];
         rows.forEach(row => {
             stages.push({
+                stage_id:    parseInt(row.dataset.stageId || '0', 10) || null,
                 stage_name:  row.querySelector('.stage-name-select')?.value  || '',
                 custom_name: row.querySelector('.custom-name-input')?.value  || '',
                 stage_date:  row.querySelector('.stage-date')?.value         || '',
@@ -1131,6 +1158,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const statusEl = document.getElementById('stageSaveStatus');
                     if (statusEl) statusEl.textContent = 'Last saved at ' +
                         new Date().toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'});
+                    setTimeout(() => location.reload(), 500);
                 } else {
                     showToast(data.message || 'Error saving stages.', 'danger');
                 }

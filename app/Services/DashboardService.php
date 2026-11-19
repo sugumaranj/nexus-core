@@ -30,6 +30,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Database\Database;
+use App\Core\Cache;
 use PDO;
 use Throwable;
 
@@ -73,7 +74,12 @@ final class DashboardService
      */
     public function getAdminStats(): array
     {
-        return [
+        $cached = Cache::get('stats_admin_overview');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $stats = [
             // ── Organisational ────────────────────────────────────────────
             'total_departments'         => $this->count("
                 SELECT COUNT(*) FROM departments WHERE is_active = 1
@@ -138,6 +144,9 @@ final class DashboardService
                 SELECT COUNT(*) FROM applications
             "),
         ];
+
+        Cache::set('stats_admin_overview', $stats, 300);
+        return $stats;
     }
 
     // =========================================================================
@@ -161,7 +170,12 @@ final class DashboardService
      */
     public function getPrincipalStats(): array
     {
-        return [
+        $cached = Cache::get('stats_principal_overview');
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $stats = [
             // ── Core approval workflow ─────────────────────────────────────
             'pending_final_approval'  => $this->count("
                 SELECT COUNT(DISTINCT sa.symposium_id)
@@ -191,6 +205,9 @@ final class DashboardService
                 SELECT COUNT(*) FROM students WHERE account_status = 'Active'
             "),
         ];
+
+        Cache::set('stats_principal_overview', $stats, 300);
+        return $stats;
     }
 
     /**

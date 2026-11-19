@@ -280,7 +280,6 @@ class ScheduleImageController extends BaseController
         header('Cache-Control: no-store, no-cache');
         header('Pragma: no-cache');
         imagepng($im, null, 6);
-        imagedestroy($im);
     }
 
     // =========================================================================
@@ -382,6 +381,5 @@ class ScheduleImageController extends BaseController
         imagettftext($im, 14, 0, (int)((600 - $tw) / 2), 45, $fg, $fontR, $msg);
         header('Content-Type: image/png');
         imagepng($im);
-        imagedestroy($im);
     }
 }

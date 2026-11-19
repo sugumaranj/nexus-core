@@ -18,6 +18,7 @@ services:
     environment:
       # These environment variables will be available to your PHP app
       - DB_HOST=db
+      - DB_PORT=3306
       - DB_DATABASE=nexuscore_db
       - DB_USERNAME=nexus_user
       - DB_PASSWORD=nexus_pass

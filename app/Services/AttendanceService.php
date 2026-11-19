@@ -153,8 +153,12 @@ final class AttendanceService
         int    $symposiumEventId,
         int    $userId,
         string $role,
-        string $notes = ''
+        string $notes = '',
+        string $roundType = 'Main',
+        ?int   $stageId = null
     ): array {
+        $round = AttendanceSessionModel::normalizeRoundType($roundType);
+
         // GATE 1: FIC authorization
         if (!$this->canMarkEventAttendance($symposiumEventId, $userId, $role)) {
             return $this->error('You are not authorized to manage attendance for this event.');
@@ -171,17 +175,19 @@ final class AttendanceService
             return $this->error('Attendance tracking is disabled for this event.');
         }
 
-        // GATE 4: No open session already
-        $existing = $this->sessionModel->getActiveEventSession($symposiumEventId);
+        // GATE 4: No open session already for this round
+        $existing = $this->sessionModel->getActiveEventSession($symposiumEventId, $round);
         if ($existing) {
-            return $this->error('An attendance session is already open for this event. Close it before opening a new one.');
+            return $this->error("An attendance session is already open for {$round}. Close it before opening a new one.");
         }
 
         // Open session
         $sessionId = $this->sessionModel->openEventSession(
             $symposiumEventId,
             $userId,
-            $notes ?: null
+            $notes ?: null,
+            $round,
+            $stageId
         );
 
         if (!$sessionId) {
@@ -192,9 +198,9 @@ final class AttendanceService
         $this->auditModel->log(
             'Attendance',
             $sessionId,
-            'Attendance Session Opened',
+            "Attendance Session Opened ({$round})",
             $userId,
-            'Event: ' . $event['event_name']
+            'Event: ' . $event['event_name'] . ' | Round: ' . $round
         );
 
         // Notify other FIC members for this event
@@ -203,13 +209,16 @@ final class AttendanceService
             if ((int) $fic['user_id'] !== $userId) {
                 $this->notifModel->create(
                     (int) $fic['user_id'],
-                    'Attendance Opened',
-                    'Attendance has been opened for: ' . $event['event_name']
+                    "{$round} Attendance Opened",
+                    "{$round} attendance has been opened for: " . $event['event_name']
                 );
             }
         }
 
-        return $this->ok('Attendance session opened successfully.', ['session_id' => $sessionId]);
+        return $this->ok("{$round} attendance session opened successfully.", [
+            'session_id' => $sessionId,
+            'round_type' => $round,
+        ]);
     }
 
     /**
@@ -692,21 +701,22 @@ final class AttendanceService
     // =========================================================================
 
     /**
-     * Get all registered participants with their attendance status for a session.
+     * Get all registered participants with their attendance status for a session & round.
      */
     public function getEventParticipantsWithAttendance(
-        int $symposiumEventId,
-        int $sessionId
+        int    $symposiumEventId,
+        int    $sessionId,
+        string $roundType = 'Main'
     ): array {
-        return $this->recordModel->getParticipantsForEventAttendance($symposiumEventId, $sessionId);
+        return $this->recordModel->getParticipantsForEventAttendance($symposiumEventId, $sessionId, $roundType);
     }
 
     /**
-     * Get attendance summary statistics for a symposium event.
+     * Get attendance summary statistics for a symposium event & round.
      */
-    public function getEventSummary(int $symposiumEventId): array
+    public function getEventSummary(int $symposiumEventId, string $roundType = 'Main'): array
     {
-        return $this->recordModel->getSummaryByEvent($symposiumEventId);
+        return $this->recordModel->getSummaryByEvent($symposiumEventId, $roundType);
     }
 
     /**
@@ -718,10 +728,10 @@ final class AttendanceService
     }
 
     /**
-     * Get session history for a symposium event.
+     * Get session history for a symposium event & round.
      */
-    public function getEventSessionHistory(int $symposiumEventId): array
+    public function getEventSessionHistory(int $symposiumEventId, ?string $roundType = 'Main'): array
     {
-        return $this->sessionModel->getSessionsByEvent($symposiumEventId);
+        return $this->sessionModel->getSessionsByEvent($symposiumEventId, $roundType);
     }
 }

@@ -201,8 +201,14 @@ final class CertificateGeneratorService
             case 'register_number':
                 return (string) ($result['register_number'] ?? '');
             case 'department':
-                // department_name now holds the short_name after query updates
-                return (string) ($result['department_name'] ?? '');
+                // department_name now holds the short_name after query updates, or external_department if present
+                return (string) ($result['external_department'] ?? $result['department_name'] ?? '');
+            case 'college_name':
+            case 'institution':
+                if (!empty($result['college_name'])) {
+                    return (string)$result['college_name'];
+                }
+                return $this->getHostCollegeName();
             case 'event_name':
                 return (string) ($result['event_name'] ?? '');
             case 'symposium_name':
@@ -227,6 +233,22 @@ final class CertificateGeneratorService
             default:
                 return '';
         }
+    }
+
+    private function getHostCollegeName(): string
+    {
+        if (isset($this->signatoryCache['host_college'])) {
+            return $this->signatoryCache['host_college'];
+        }
+        $db = \App\Database\Database::getConnection();
+        $stmt = $db->query("SELECT setting_value FROM system_settings WHERE setting_key = 'COLLEGE_NAME' LIMIT 1");
+        $name = (string)$stmt->fetchColumn();
+        if (empty($name)) {
+            $stmt2 = $db->query("SELECT college_name FROM colleges WHERE is_host = 1 LIMIT 1");
+            $name = (string)$stmt2->fetchColumn() ?: 'Government Arts and Science College, Veerapandi, Theni';
+        }
+        $this->signatoryCache['host_college'] = $name;
+        return $name;
     }
 
     private function rankLabel(int $rank): string

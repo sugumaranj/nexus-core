@@ -72,7 +72,9 @@ final class StudentModel
         ?string $departmentId = null,
         ?string $academicYear = null,
         ?string $semester = null,
-        ?string $status = null
+        ?string $status = null,
+        ?int $limit = null,
+        ?int $offset = null
     ): array {
         $sql = "
             SELECT
@@ -157,12 +159,24 @@ final class StudentModel
 
         $sql .= ' ORDER BY s.full_name ASC, s.register_number ASC';
 
-        $statement = $this->db->prepare($sql);
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
 
-        $statement->execute($params);
+        $statement = $this->db->prepare($sql);
+        foreach ($params as $k => $v) {
+            $statement->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $statement->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $statement->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $statement->execute();
 
         return $statement->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     /**
      * ---------------------------------------------------------------------
@@ -234,26 +248,60 @@ final class StudentModel
      * @return array|false
      * ---------------------------------------------------------------------
      */
-    public function findByRegisterNumber(string $registerNumber): array|false
+    public function findByRegisterNumber(string $registerNumber, ?int $collegeId = null): array|false
     {
         if (!$this->hasColumn('register_number')) {
             return false;
         }
 
+        if ($collegeId !== null) {
+            $sql = "
+                SELECT " . $this->getBaseStudentColumns() . "
+                FROM students
+                WHERE register_number = :register_number
+                  AND college_id = :college_id
+                LIMIT 1
+            ";
+            $statement = $this->db->prepare($sql);
+            $statement->bindValue(':register_number', trim($registerNumber));
+            $statement->bindValue(':college_id', $collegeId, PDO::PARAM_INT);
+            $statement->execute();
+            return $statement->fetch(PDO::FETCH_ASSOC);
+        }
+
         $sql = "
-            SELECT *
+            SELECT " . $this->getBaseStudentColumns() . "
             FROM students
             WHERE register_number = :register_number
-            LIMIT 1
         ";
 
         $statement = $this->db->prepare($sql);
-
         $statement->bindValue(':register_number', trim($registerNumber));
-
         $statement->execute();
+        $matches = $statement->fetchAll(PDO::FETCH_ASSOC);
 
-        return $statement->fetch(PDO::FETCH_ASSOC);
+        if (count($matches) === 1) {
+            return $matches[0];
+        }
+
+        return false;
+    }
+
+    /**
+     * Find student by Email OR Register Number.
+     *
+     * @param string $identifier
+     * @param int|null $collegeId
+     * @return array|false
+     */
+    public function findByEmailOrRegisterNumber(string $identifier, ?int $collegeId = null): array|false
+    {
+        $clean = trim($identifier);
+        if (filter_var($clean, FILTER_VALIDATE_EMAIL)) {
+            return $this->findByEmail($clean);
+        }
+
+        return $this->findByRegisterNumber($clean, $collegeId);
     }
 
     /**
@@ -272,7 +320,7 @@ final class StudentModel
         }
 
         $sql = "
-            SELECT *
+            SELECT " . $this->getBaseStudentColumns() . "
             FROM students
             WHERE roll_number = :roll_number
             LIMIT 1
@@ -303,7 +351,7 @@ final class StudentModel
         }
 
         $sql = "
-            SELECT *
+            SELECT " . $this->getBaseStudentColumns() . "
             FROM students
             WHERE email = :email
             LIMIT 1
@@ -334,7 +382,7 @@ final class StudentModel
         }
 
         $sql = "
-            SELECT *
+            SELECT " . $this->getBaseStudentColumns() . "
             FROM students
             WHERE phone = :phone
             LIMIT 1
@@ -462,7 +510,9 @@ final class StudentModel
         ?string $departmentId = null,
         ?string $academicYear = null,
         ?string $semester = null,
-        ?string $status = null
+        ?string $status = null,
+        ?int $limit = null,
+        ?int $offset = null
     ): array {
         return $this->getAll(
             $search,
@@ -616,6 +666,17 @@ final class StudentModel
      * @return string
      * ---------------------------------------------------------------------
      */
+    private function getBaseStudentColumns(): string
+    {
+        $cols = "student_id, register_number, department_id, student_type, college_id, college_name, external_department, affiliation_status, full_name, email, phone, gender, academic_year, section, account_status, password_hash, created_at, updated_at";
+        foreach (['semester', 'roll_number', 'dob', 'admission_year', 'graduation_year', 'profile_photo'] as $optCol) {
+            if ($this->hasColumn($optCol)) {
+                $cols .= ", {$optCol}";
+            }
+        }
+        return $cols;
+    }
+
     private function getSelectColumns(): string
     {
         $columns = [];
@@ -687,6 +748,26 @@ final class StudentModel
             $columns[] = 's.updated_at';
         }
 
+        if ($this->hasColumn('student_type')) {
+            $columns[] = 's.student_type';
+        }
+
+        if ($this->hasColumn('college_id')) {
+            $columns[] = 's.college_id';
+        }
+
+        if ($this->hasColumn('college_name')) {
+            $columns[] = 's.college_name';
+        }
+
+        if ($this->hasColumn('external_department')) {
+            $columns[] = 's.external_department';
+        }
+
+        if ($this->hasColumn('affiliation_status')) {
+            $columns[] = 's.affiliation_status';
+        }
+
         return implode(', ', $columns);
     }
 
@@ -717,7 +798,12 @@ final class StudentModel
             'admission_year',
             'graduation_year',
             'profile_photo',
-            'account_status'
+            'account_status',
+            'student_type',
+            'college_id',
+            'college_name',
+            'external_department',
+            'affiliation_status'
         ];
 
         $fields = [];

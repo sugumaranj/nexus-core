@@ -3,11 +3,29 @@
 declare(strict_types=1);
 ?>
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800"><?= htmlspecialchars($page_title ?? 'Generation Report', ENT_QUOTES, 'UTF-8') ?></h1>
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <div>
-            <a href="<?= base_url('/certificates/generate') ?>" class="btn btn-sm btn-secondary shadow-sm me-2"><i class="bi bi-arrow-left"></i> Back</a>
-            <a href="<?= base_url('/certificates/generated') ?>" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-list-check"></i> View Generated Certificates</a>
+            <h1 class="h3 mb-0 text-gray-800"><?= htmlspecialchars($page_title ?? 'Generation Report', ENT_QUOTES, 'UTF-8') ?></h1>
+            <?php if (!empty($job)): ?>
+                <div class="small text-muted mt-1">
+                    Job ID: <strong>#<?= (int)$job['job_id'] ?></strong> &bull; <?= htmlspecialchars((string)$job['job_type']) ?> &bull; Status: <span class="badge bg-success"><?= htmlspecialchars((string)$job['status']) ?></span>
+                    <?php if (!empty($job['completed_at'])): ?>
+                        &bull; Finished: <?= htmlspecialchars((string)$job['completed_at']) ?>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="<?= base_url('/certificates/generate') ?>" class="btn btn-sm btn-secondary shadow-sm"><i class="bi bi-arrow-left"></i> Back to Generate</a>
+            <?php if (!empty($job['symposium_event_id'])): ?>
+                <a href="<?= base_url('/certificates/generated?event_id=' . (int)$job['symposium_event_id']) ?>" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-list-check"></i> View Generated Certificates</a>
+                <a href="<?= base_url('/certificates/download/event-zip?event_id=' . (int)$job['symposium_event_id']) ?>" class="btn btn-sm btn-success shadow-sm"><i class="bi bi-file-earmark-zip"></i> Download Event ZIP</a>
+            <?php elseif (!empty($report['event_id'])): ?>
+                <a href="<?= base_url('/certificates/generated?event_id=' . (int)$report['event_id']) ?>" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-list-check"></i> View Generated Certificates</a>
+                <a href="<?= base_url('/certificates/download/event-zip?event_id=' . (int)$report['event_id']) ?>" class="btn btn-sm btn-success shadow-sm"><i class="bi bi-file-earmark-zip"></i> Download Event ZIP</a>
+            <?php else: ?>
+                <a href="<?= base_url('/certificates/generated') ?>" class="btn btn-sm btn-primary shadow-sm"><i class="bi bi-list-check"></i> View Generated Certificates</a>
+            <?php endif; ?>
         </div>
     </div>
 

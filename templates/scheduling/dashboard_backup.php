@@ -43,6 +43,18 @@ $sessionIcons  = ['FN' => 'bi-brightness-high', 'AN' => 'bi-sunset', 'Full Day' 
 
 function schedBadge(string $status): string {
     return match($status) {
+        'Scheduled'   => '<span class="badge bg-success">Scheduled</span>',
+        'Rescheduled' => '<span class="badge bg-warning text-dark">Rescheduled</span>',
+        'Locked'      => '<span class="badge bg-secondary">Locked</span>',
+        default       => '<span class="badge bg-light text-dark border">Unscheduled</span>',
+    };
+}
+?>
+
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
             <a href="<?= base_url() ?>/symposiums/view?id=<?= $symId ?>" class="text-muted small">
                 <i class="bi bi-arrow-left me-1"></i>Back to Symposium
             </a>

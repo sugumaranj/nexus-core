@@ -87,7 +87,9 @@ final class CompetitionModel
         ?string $session = null,
         ?string $eventDate = null,
         bool $includeArchived = false,
-        ?int $scopeDepartmentId = null
+        ?int $scopeDepartmentId = null,
+        ?int $limit = null,
+        ?int $offset = null
     ): array {
         $sql = "
             SELECT
@@ -253,11 +255,24 @@ final class CompetitionModel
         $sql .= ' GROUP BY c.competition_id';
         $sql .= ' ORDER BY c.event_date ASC, c.display_order ASC, c.competition_code ASC';
 
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     /**
      * -------------------------------------------------------------------------
@@ -818,11 +833,24 @@ final class CompetitionModel
             $params['exclude_id'] = $excludeId;
         }
 
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     /**
      * -------------------------------------------------------------------------
@@ -871,11 +899,24 @@ final class CompetitionModel
             $params['exclude_id'] = $excludeId;
         }
 
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     // =========================================================================
     // RELATED ENTITY LOOKUPS
@@ -1042,11 +1083,24 @@ final class CompetitionModel
 
         $sql .= ' ORDER BY u.full_name ASC LIMIT 50';
 
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     /**
      * -------------------------------------------------------------------------

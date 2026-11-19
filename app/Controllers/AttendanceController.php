@@ -206,9 +206,15 @@ final class AttendanceController extends BaseController
         if (empty($event['supports_attendance'])) {
             $canMark = false;
         }
-        $activeSession = $this->sessionModel->getActiveEventSession($eventId);
+
+        $hasPrelims = (($event['prelim_decision'] ?? '') === 'Required');
+        $roundType  = $hasPrelims
+            ? AttendanceSessionModel::normalizeRoundType($_GET['round'] ?? 'Main')
+            : 'Main';
+
+        $activeSession = $this->sessionModel->getActiveEventSession($eventId, $roundType);
         $sessionId     = $activeSession ? (int) $activeSession['session_id'] : 0;
-        $history       = $this->attendanceService->getEventSessionHistory($eventId);
+        $history       = $this->attendanceService->getEventSessionHistory($eventId, $roundType);
 
         // For display: use the active session, or fall back to most recent closed session
         $displaySessionId = $sessionId;
@@ -218,9 +224,10 @@ final class AttendanceController extends BaseController
 
         $participants  = $this->attendanceService->getEventParticipantsWithAttendance(
             $eventId,
-            $displaySessionId
+            $displaySessionId,
+            $roundType
         );
-        $summary       = $this->attendanceService->getEventSummary($eventId);
+        $summary       = $this->attendanceService->getEventSummary($eventId, $roundType);
         $deptBreakdown = $displaySessionId > 0
             ? $this->attendanceService->getEventDeptBreakdown($eventId, $displaySessionId)
             : [];
@@ -245,7 +252,7 @@ final class AttendanceController extends BaseController
         $attendanceLocked = false;
         $finalizedSession = null;
         if (!empty($event['supports_attendance']) && !$activeSession) {
-            $finalizedSession = $this->sessionModel->getFinalizedEventSession($eventId);
+            $finalizedSession = $this->sessionModel->getFinalizedEventSession($eventId, $roundType);
             if ($finalizedSession) {
                 $attendanceLocked = true;
             }
@@ -255,8 +262,10 @@ final class AttendanceController extends BaseController
         $offlineSyncToken = \App\Helpers\AuthHelper::generateOfflineSyncToken($user);
 
         $this->render('attendance.mark-sheet', [
-            'pageTitle'        => 'Attendance — ' . ($event['event_name'] ?? ''),
+            'pageTitle'        => ($roundType === 'Prelims' ? 'Prelims Attendance — ' : 'Attendance — ') . ($event['event_name'] ?? ''),
             'event'            => $event,
+            'roundType'        => $roundType,
+            'hasPrelims'       => $hasPrelims,
             'activeSession'    => $activeSession,
             'sessionId'        => $sessionId,
             'participants'     => $participants,
@@ -297,9 +306,11 @@ final class AttendanceController extends BaseController
             $this->redirect('/attendance');
         }
 
-        $user    = $this->user();
-        $eventId = (int) ($_POST['symposium_event_id'] ?? 0);
-        $notes   = trim($_POST['notes'] ?? '');
+        $user      = $this->user();
+        $eventId   = (int) ($_POST['symposium_event_id'] ?? 0);
+        $notes     = trim($_POST['notes'] ?? '');
+        $roundType = AttendanceSessionModel::normalizeRoundType($_POST['round_type'] ?? 'Main');
+        $stageId   = !empty($_POST['stage_id']) ? (int) $_POST['stage_id'] : null;
 
         if ($eventId <= 0) {
             if ($isAjax) {
@@ -313,7 +324,9 @@ final class AttendanceController extends BaseController
             $eventId,
             (int) $user['user_id'],
             $user['role'] ?? '',
-            $notes
+            $notes,
+            $roundType,
+            $stageId
         );
 
         if ($isAjax) {
@@ -326,7 +339,8 @@ final class AttendanceController extends BaseController
             $this->error($result['message']);
         }
 
-        $this->redirect('/attendance/event?id=' . $eventId);
+        $roundQuery = $roundType === 'Prelims' ? '&round=prelims' : '';
+        $this->redirect('/attendance/event?id=' . $eventId . $roundQuery);
     }
 
     /**
@@ -353,6 +367,7 @@ final class AttendanceController extends BaseController
         $user      = $this->user();
         $sessionId = (int) ($_POST['session_id'] ?? 0);
         $eventId   = (int) ($_POST['symposium_event_id'] ?? 0);
+        $roundType = AttendanceSessionModel::normalizeRoundType($_POST['round_type'] ?? 'Main');
 
         if ($eventId <= 0) {
             if ($isAjax) {
@@ -379,7 +394,8 @@ final class AttendanceController extends BaseController
             $this->error($result['message']);
         }
 
-        $this->redirect('/attendance/event?id=' . $eventId);
+        $roundQuery = $roundType === 'Prelims' ? '&round=prelims' : '';
+        $this->redirect('/attendance/event?id=' . $eventId . $roundQuery);
     }
 
     /**

@@ -33,6 +33,7 @@ final class SymposiumValidator
     private array $allowedTypes = [
         'Intra Department',
         'Inter Department',
+        'Inter College',
     ];
 
     /**

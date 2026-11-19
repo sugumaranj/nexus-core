@@ -44,7 +44,8 @@ if (!function_exists('base_url')) {
      */
     function base_url(string $path = ''): string
     {
-        $base = rtrim(config('base_url'), '/');
+        $configured = config('base_url');
+        $base = rtrim(is_string($configured) ? $configured : '', '/');
         if ($path !== '') {
             return $base . '/' . ltrim($path, '/');
         }
@@ -66,7 +67,19 @@ if (!function_exists('asset')) {
     function asset(string $path): string
     {
         $assetBase = rtrim(config('asset_url') ?? config('base_url'), '/');
-        return $assetBase . '/' . ltrim($path, '/');
+        $cleanPath = ltrim($path, '/');
+        $url = $assetBase . '/' . $cleanPath;
+
+        // Auto cache busting: append ?v=<filemtime> if local asset exists
+        $filePathPart = explode('?', $cleanPath)[0];
+        $localFile = dirname(__DIR__, 2) . '/public/' . $filePathPart;
+        if (file_exists($localFile) && !is_dir($localFile)) {
+            $mtime = filemtime($localFile);
+            $separator = str_contains($url, '?') ? '&' : '?';
+            $url .= $separator . 'v=' . $mtime;
+        }
+
+        return $url;
     }
 }
 
@@ -148,4 +161,60 @@ if (!function_exists('event_logo')) {
 
         return $eventLogo ? asset($eventLogo) : null;
     }
-}
+}
+
+
+if (!function_exists('form_idempotency_field')) {
+    /**
+     * Generate an idempotency token hidden input field for forms.
+     * Prevents duplicate form submissions and network replays.
+     *
+     * @return string
+     */
+    function form_idempotency_field(): string
+    {
+        \App\Core\Session::start();
+        $token = bin2hex(random_bytes(16));
+        return '<input type="hidden" name="form_idempotency_token" value="' . htmlspecialchars($token, ENT_QUOTES, 'UTF-8') . '">';
+    }
+}
+
+if (!function_exists('verify_form_idempotency_token')) {
+    /**
+     * Verify and consume an idempotency token.
+     * Returns false if token has already been processed within the TTL window.
+     *
+     * @param string|null $token
+     * @param int         $ttlSeconds Default: 300 (5 minutes)
+     * @return bool
+     */
+    function verify_form_idempotency_token(?string $token, int $ttlSeconds = 300): bool
+    {
+        if (empty($token)) {
+            return true; // Backward compatibility for un-migrated forms or testing
+        }
+
+        \App\Core\Session::start();
+        $now = time();
+        $processed = \App\Core\Session::get('_form_tokens', []);
+
+        // Prune expired tokens
+        $clean = [];
+        if (is_array($processed)) {
+            foreach ($processed as $t => $time) {
+                if (($now - (int)$time) < $ttlSeconds) {
+                    $clean[$t] = $time;
+                }
+            }
+        }
+
+        if (isset($clean[$token])) {
+            \App\Core\Session::set('_form_tokens', $clean);
+            return false; // Replay / duplicate detected!
+        }
+
+        $clean[$token] = $now;
+        \App\Core\Session::set('_form_tokens', $clean);
+        return true;
+    }
+}

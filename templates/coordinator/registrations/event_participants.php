@@ -32,10 +32,11 @@ declare(strict_types=1);
         <div>
             <?php
             $exportParams = http_build_query([
-                'event_id' => $event['symposium_event_id'],
-                'status' => $filters['application_status'] ?? '',
-                'department_id' => $filters['department_id'] ?? '',
-                'academic_year' => $filters['academic_year'] ?? '',
+                'event_id'         => $event['symposium_event_id'],
+                'status'           => $filters['application_status'] ?? '',
+                'department_id'    => $filters['department_id'] ?? '',
+                'college_id'       => $filters['college_id'] ?? '',
+                'academic_year'    => $filters['academic_year'] ?? '',
                 'application_type' => $filters['application_type'] ?? ''
             ]);
             ?>
@@ -84,17 +85,31 @@ declare(strict_types=1);
     <!-- Filters -->
     <div class="card shadow-sm mb-4">
         <div class="card-body">
-            <form action="" method="get" class="row g-3 align-items-end">
+            <form action="" method="get" class="row g-2 align-items-end">
                 <input type="hidden" name="event_id" value="<?= htmlspecialchars((string)$event['symposium_event_id'], ENT_QUOTES, 'UTF-8') ?>">
                 
-                <div class="col-md-3">
-                    <label class="form-label">Search</label>
-                    <input type="text" name="search" class="form-control" placeholder="Name, Register No, Team" value="<?= htmlspecialchars($search ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label small fw-semibold">Search</label>
+                    <input type="text" name="search" class="form-control form-control-sm" placeholder="Name, Reg No, Team" value="<?= htmlspecialchars($search ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                </div>
+
+                <div class="col-xl-2 col-lg-3 col-md-4">
+                    <label class="form-label small fw-semibold">College</label>
+                    <select name="college_id" class="form-select form-select-sm">
+                        <option value="">All Colleges</option>
+                        <?php if (!empty($colleges)): ?>
+                            <?php foreach ($colleges as $col): ?>
+                                <option value="<?= $col['college_id'] ?>" <?= (($filters['college_id'] ?? '') == $col['college_id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($col['college_name'], ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </select>
                 </div>
                 
-                <div class="col-md-2">
-                    <label class="form-label">Department</label>
-                    <select name="department_id" class="form-select">
+                <div class="col-xl-2 col-lg-2 col-md-4">
+                    <label class="form-label small fw-semibold">Department</label>
+                    <select name="department_id" class="form-select form-select-sm">
                         <option value="">All Departments</option>
                         <?php foreach ($departments as $dept): ?>
                             <option value="<?= $dept['department_id'] ?>" <?= (($filters['department_id'] ?? '') == $dept['department_id']) ? 'selected' : '' ?>>
@@ -104,9 +119,9 @@ declare(strict_types=1);
                     </select>
                 </div>
                 
-                <div class="col-md-2">
-                    <label class="form-label">Year</label>
-                    <select name="academic_year" class="form-select">
+                <div class="col-xl-2 col-lg-1 col-md-3">
+                    <label class="form-label small fw-semibold">Year</label>
+                    <select name="academic_year" class="form-select form-select-sm">
                         <option value="">All Years</option>
                         <?php foreach ($academicYears as $year): ?>
                             <option value="<?= $year ?>" <?= (($filters['academic_year'] ?? '') == $year) ? 'selected' : '' ?>>
@@ -116,18 +131,18 @@ declare(strict_types=1);
                     </select>
                 </div>
 
-                <div class="col-md-2">
-                    <label class="form-label">Type</label>
-                    <select name="application_type" class="form-select">
+                <div class="col-xl-1 col-lg-1 col-md-3">
+                    <label class="form-label small fw-semibold">Type</label>
+                    <select name="application_type" class="form-select form-select-sm">
                         <option value="All">All Types</option>
                         <option value="Individual" <?= (($filters['application_type'] ?? '') === 'Individual') ? 'selected' : '' ?>>Individual</option>
                         <option value="Team" <?= (($filters['application_type'] ?? '') === 'Team') ? 'selected' : '' ?>>Team</option>
                     </select>
                 </div>
 
-                <div class="col-md-2">
-                    <label class="form-label">Status</label>
-                    <select name="status" class="form-select">
+                <div class="col-xl-2 col-lg-1 col-md-3">
+                    <label class="form-label small fw-semibold">Status</label>
+                    <select name="status" class="form-select form-select-sm">
                         <option value="All">All Statuses</option>
                         <option value="Approved" <?= (($filters['application_status'] ?? '') === 'Approved') ? 'selected' : '' ?>>Approved</option>
                         <option value="Pending" <?= (($filters['application_status'] ?? '') === 'Pending') ? 'selected' : '' ?>>Pending</option>
@@ -137,9 +152,27 @@ declare(strict_types=1);
                     </select>
                 </div>
                 
-                <div class="col-md-1">
-                    <button type="submit" class="btn btn-primary w-100">Filter</button>
+                <div class="col-xl-1 col-lg-1 col-md-3">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i>Filter
+                    </button>
                 </div>
+
+                <?php 
+                $hasActiveFilters = !empty($filters['college_id']) || 
+                                    !empty($filters['department_id']) || 
+                                    !empty($filters['academic_year']) || 
+                                    (($filters['application_type'] ?? 'All') !== 'All') || 
+                                    (($filters['application_status'] ?? 'All') !== 'All') || 
+                                    !empty($search);
+                if ($hasActiveFilters): 
+                ?>
+                    <div class="col-12 mt-2">
+                        <a href="<?= base_url('/coordinator/registrations/event?event_id=' . $event['symposium_event_id']) ?>" class="btn btn-sm btn-link text-decoration-none text-muted p-0">
+                            <i class="bi bi-x-circle me-1"></i>Reset all filters
+                        </a>
+                    </div>
+                <?php endif; ?>
             </form>
         </div>
     </div>
@@ -195,6 +228,11 @@ declare(strict_types=1);
                                     }
                                     ?>
                                     <span class="badge bg-<?= $statusClass ?>"><?= htmlspecialchars($app['application_status'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php if (!empty($app['payment_status']) && $app['payment_status'] !== 'Not Required'): ?>
+                                        <br><span class="badge bg-<?= $app['payment_status'] === 'Paid' ? 'info text-dark' : 'warning text-dark' ?> mt-1">
+                                            <i class="bi bi-currency-rupee"></i><?= htmlspecialchars($app['payment_status'], ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <?php if (($app['application_status'] ?? '') === 'Approved'): ?>
@@ -215,7 +253,12 @@ declare(strict_types=1);
                                 <td></td>
                                 <td><i class="bi bi-person-fill text-muted me-1"></i><?= htmlspecialchars($member['register_number'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($member['name'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($member['department'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td>
+    <?= htmlspecialchars($member['department'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+    <?php if (!empty($member['college_name'])): ?>
+        <br><small class="text-primary"><i class="bi bi-building me-1"></i><?= htmlspecialchars($member['college_name'], ENT_QUOTES, 'UTF-8') ?></small>
+    <?php endif; ?>
+</td>
                                 <td><?= htmlspecialchars((string)($member['academic_year'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td colspan="4"></td>
                             </tr>
@@ -230,7 +273,12 @@ declare(strict_types=1);
                                 <td><?= htmlspecialchars($app['application_no'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($p['register_number'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><?= htmlspecialchars($p['name'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-                                <td><?= htmlspecialchars($p['department'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                                <td>
+    <?= htmlspecialchars($p['department'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+    <?php if (!empty($p['college_name'])): ?>
+        <br><small class="text-primary"><i class="bi bi-building me-1"></i><?= htmlspecialchars($p['college_name'], ENT_QUOTES, 'UTF-8') ?></small>
+    <?php endif; ?>
+</td>
                                 <td><?= htmlspecialchars((string)($p['academic_year'] ?? ''), ENT_QUOTES, 'UTF-8') ?></td>
                                 <td><span class="badge bg-info">Individual</span></td>
                                 <td><?= \App\Helpers\DateHelper::date($app['applied_at'] ?? 'now') ?></td>
@@ -245,6 +293,11 @@ declare(strict_types=1);
                                     }
                                     ?>
                                     <span class="badge bg-<?= $statusClass ?>"><?= htmlspecialchars($app['application_status'] ?? '', ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php if (!empty($app['payment_status']) && $app['payment_status'] !== 'Not Required'): ?>
+                                        <br><span class="badge bg-<?= $app['payment_status'] === 'Paid' ? 'info text-dark' : 'warning text-dark' ?> mt-1">
+                                            <i class="bi bi-currency-rupee"></i><?= htmlspecialchars($app['payment_status'], ENT_QUOTES, 'UTF-8') ?>
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td class="text-center">
                                     <?php if (($app['application_status'] ?? '') === 'Approved'): ?>

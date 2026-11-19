@@ -17,7 +17,7 @@ class TeamResolverService
 
     /**
      * Resolves the canonical participant data for a given application ID.
-     * This handles both Individual and Team applications.
+     * Handles both Individual and Team applications.
      */
     public function resolveParticipant(int $applicationId): ?array
     {
@@ -46,10 +46,13 @@ class TeamResolverService
         $sql = "
             SELECT 
                 s.student_id, s.register_number, s.full_name as name, 
-                d.short_name as department, s.academic_year, s.gender
+                COALESCE(s.external_department, d.short_name, d.department_name) as department,
+                s.academic_year, s.gender, s.student_type,
+                COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') as college_name
             FROM applications a
             JOIN students s ON a.student_id = s.student_id
-            JOIN departments d ON s.department_id = d.department_id
+            LEFT JOIN departments d ON s.department_id = d.department_id
+            LEFT JOIN colleges c ON s.college_id = c.college_id
             WHERE a.application_id = :id
         ";
         $stmt = $this->db->prepare($sql);
@@ -61,21 +64,25 @@ class TeamResolverService
             'symposium_event_id' => (int)$app['symposium_event_id'],
             'participant_type' => 'individual',
             'participant' => [
-                'student_id' => (int)$student['student_id'],
+                'student_id'      => (int)$student['student_id'],
                 'register_number' => $student['register_number'],
-                'name' => $student['name'],
-                'department' => $student['department'],
-                'academic_year' => $student['academic_year'],
-                'gender' => $student['gender'],
+                'name'            => $student['name'],
+                'department'      => $student['department'],
+                'academic_year'   => $student['academic_year'],
+                'gender'          => $student['gender'],
+                'student_type'    => $student['student_type'] ?? 'Internal',
+                'college_name'    => $student['college_name'],
             ],
             'members' => [
                 [
-                    'student_id' => (int)$student['student_id'],
+                    'student_id'      => (int)$student['student_id'],
                     'register_number' => $student['register_number'],
-                    'name' => $student['name'],
-                    'department' => $student['department'],
-                    'academic_year' => $student['academic_year'],
-                    'gender' => $student['gender'],
+                    'name'            => $student['name'],
+                    'department'      => $student['department'],
+                    'academic_year'   => $student['academic_year'],
+                    'gender'          => $student['gender'],
+                    'student_type'    => $student['student_type'] ?? 'Internal',
+                    'college_name'    => $student['college_name'],
                 ]
             ]
         ];
@@ -106,10 +113,13 @@ class TeamResolverService
         $membersSql = "
             SELECT 
                 s.student_id, s.register_number, s.full_name as name, 
-                d.short_name as department, s.academic_year, s.gender
+                COALESCE(s.external_department, d.short_name, d.department_name) as department,
+                s.academic_year, s.gender, s.student_type,
+                COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') as college_name
             FROM team_members tm
             JOIN students s ON tm.student_id = s.student_id
-            JOIN departments d ON s.department_id = d.department_id
+            LEFT JOIN departments d ON s.department_id = d.department_id
+            LEFT JOIN colleges c ON s.college_id = c.college_id
             WHERE tm.team_id = :tid
             ORDER BY s.full_name ASC
         ";
@@ -135,6 +145,7 @@ class TeamResolverService
             'members' => $members,
         ];
     }
+
     public function resolveParticipantsForApplications(array $applications): array
     {
         $resolved = [];
@@ -150,8 +161,6 @@ class TeamResolverService
             }
         }
 
-        // Process Individuals (they are often pre-joined in $app, but let's fetch canonically to be safe if needed,
-        // or just use resolveIndividualParticipant in a loop if few, but to avoid N+1 we can fetch all in one query)
         if (!empty($individualApps)) {
             $ids = array_map(fn($a) => (int)$a['application_id'], $individualApps);
             $placeholders = str_repeat('?,', count($ids) - 1) . '?';
@@ -159,10 +168,13 @@ class TeamResolverService
                 SELECT 
                     a.application_id, a.symposium_event_id,
                     s.student_id, s.register_number, s.full_name as name, 
-                    d.short_name as department, s.academic_year, s.gender
+                    COALESCE(s.external_department, d.short_name, d.department_name) as department,
+                    s.academic_year, s.gender, s.student_type,
+                    COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') as college_name
                 FROM applications a
                 JOIN students s ON a.student_id = s.student_id
-                JOIN departments d ON s.department_id = d.department_id
+                LEFT JOIN departments d ON s.department_id = d.department_id
+                LEFT JOIN colleges c ON s.college_id = c.college_id
                 WHERE a.application_id IN ($placeholders)
             ";
             $stmt = $this->db->prepare($sql);
@@ -176,32 +188,34 @@ class TeamResolverService
                     'symposium_event_id' => (int)$ind['symposium_event_id'],
                     'participant_type' => 'individual',
                     'participant' => [
-                        'student_id' => (int)$ind['student_id'],
+                        'student_id'      => (int)$ind['student_id'],
                         'register_number' => $ind['register_number'],
-                        'name' => $ind['name'],
-                        'department' => $ind['department'],
-                        'academic_year' => $ind['academic_year'],
-                        'gender' => $ind['gender'],
+                        'name'            => $ind['name'],
+                        'department'      => $ind['department'],
+                        'academic_year'   => $ind['academic_year'],
+                        'gender'          => $ind['gender'],
+                        'student_type'    => $ind['student_type'] ?? 'Internal',
+                        'college_name'    => $ind['college_name'],
                     ],
                     'members' => [
                         [
-                            'student_id' => (int)$ind['student_id'],
+                            'student_id'      => (int)$ind['student_id'],
                             'register_number' => $ind['register_number'],
-                            'name' => $ind['name'],
-                            'department' => $ind['department'],
-                            'academic_year' => $ind['academic_year'],
-                            'gender' => $ind['gender'],
+                            'name'            => $ind['name'],
+                            'department'      => $ind['department'],
+                            'academic_year'   => $ind['academic_year'],
+                            'gender'          => $ind['gender'],
+                            'student_type'    => $ind['student_type'] ?? 'Internal',
+                            'college_name'    => $ind['college_name'],
                         ]
                     ]
                 ];
             }
         }
 
-        // Process Teams
         if (!empty($teamAppIds)) {
             $placeholders = str_repeat('?,', count($teamAppIds) - 1) . '?';
             
-            // Get teams
             $sql = "
                 SELECT t.team_id, t.application_id, t.manager_student_id, a.symposium_event_id
                 FROM teams t
@@ -216,15 +230,17 @@ class TeamResolverService
                 $teamIds = array_map(fn($t) => (int)$t['team_id'], $teams);
                 $tPlaceholders = str_repeat('?,', count($teamIds) - 1) . '?';
                 
-                // Get all members for these teams
                 $mSql = "
                     SELECT 
                         tm.team_id,
                         s.student_id, s.register_number, s.full_name as name, 
-                        d.short_name as department, s.academic_year, s.gender
+                        COALESCE(s.external_department, d.short_name, d.department_name) as department,
+                        s.academic_year, s.gender, s.student_type,
+                        COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') as college_name
                     FROM team_members tm
                     JOIN students s ON tm.student_id = s.student_id
-                    JOIN departments d ON s.department_id = d.department_id
+                    LEFT JOIN departments d ON s.department_id = d.department_id
+                    LEFT JOIN colleges c ON s.college_id = c.college_id
                     WHERE tm.team_id IN ($tPlaceholders)
                     ORDER BY s.full_name ASC
                 ";
@@ -232,20 +248,20 @@ class TeamResolverService
                 $mStmt->execute($teamIds);
                 $allMembers = $mStmt->fetchAll(PDO::FETCH_ASSOC);
 
-                // Group members by team_id
                 $membersByTeam = [];
                 foreach ($allMembers as $m) {
                     $membersByTeam[$m['team_id']][] = [
-                        'student_id' => (int)$m['student_id'],
+                        'student_id'      => (int)$m['student_id'],
                         'register_number' => $m['register_number'],
-                        'name' => $m['name'],
-                        'department' => $m['department'],
-                        'academic_year' => $m['academic_year'],
-                        'gender' => $m['gender'],
+                        'name'            => $m['name'],
+                        'department'      => $m['department'],
+                        'academic_year'   => $m['academic_year'],
+                        'gender'          => $m['gender'],
+                        'student_type'    => $m['student_type'] ?? 'Internal',
+                        'college_name'    => $m['college_name'],
                     ];
                 }
 
-                // Build resolved team array
                 foreach ($teams as $t) {
                     $appId = (int)$t['application_id'];
                     $tId = (int)$t['team_id'];
@@ -271,7 +287,6 @@ class TeamResolverService
             }
         }
 
-        // Fill in any applications that didn't resolve (e.g. invalid state)
         foreach ($applications as $app) {
             $appId = (int)$app['application_id'];
             if (!isset($resolved[$appId])) {

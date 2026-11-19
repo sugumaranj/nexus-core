@@ -29,6 +29,22 @@ final class CertificateBulkService
     private TeamResolverService $teamResolver;
     private CertificateIdentityService $identityService;
     private CertificateVerificationUrlService $verificationUrlService;
+    /** @var callable|null */
+    private $progressCallback = null;
+    private int $cumulativeProcessed = 0;
+
+    public function setProgressCallback(?callable $callback): self
+    {
+        $this->progressCallback = $callback;
+        $this->cumulativeProcessed = 0;
+        return $this;
+    }
+
+    public function resetCumulativeProcessed(): self
+    {
+        $this->cumulativeProcessed = 0;
+        return $this;
+    }
 
     public const CERT_STORAGE_DIR = __DIR__ . '/../../storage/certificates';
 
@@ -71,8 +87,9 @@ final class CertificateBulkService
         // Pre-generation reconciliation — recover any stuck Generating/Finalizing rows
         (new CertificateReconciliationService())->reconcileStuckIssuances($userId);
 
-        // Extend execution time limit for large batches
-        set_time_limit(300);
+        // Ensure generation never aborts if client disconnects or tab closes
+        @ignore_user_abort(true);
+        @set_time_limit(0);
 
         // ── 1. Re-fetch event; verify is_locked ──────────────────────────────
         $event = $this->eventModel->findById($eventId);
@@ -136,6 +153,10 @@ final class CertificateBulkService
 
         foreach ($recipients as $recipient) {
             $report['total_processed']++;
+            $this->cumulativeProcessed++;
+            if ($this->progressCallback !== null) {
+                ($this->progressCallback)($this->cumulativeProcessed, count($recipients));
+            }
             $appId     = (int)$recipient['application_id'];
             $studentId = (int)($recipient['recipient_student_id'] ?? 0) ?: null;
 
@@ -271,6 +292,10 @@ final class CertificateBulkService
                     'reason'     => 'Success',
                 ];
 
+                unset($pdfBytes);
+                if ($report['total_processed'] % 25 === 0) {
+                    gc_collect_cycles();
+                }
             } catch (\Throwable $e) {
                 if ($db->inTransaction()) {
                     $db->rollBack();
@@ -329,8 +354,9 @@ final class CertificateBulkService
         // Pre-generation reconciliation — recover any stuck Generating/Finalizing rows
         (new CertificateReconciliationService())->reconcileStuckIssuances($userId);
 
-        // Extend execution time limit for large batches
-        set_time_limit(300);
+        // Ensure generation never aborts if client disconnects or tab closes
+        @ignore_user_abort(true);
+        @set_time_limit(0);
 
         // ── 1. Re-fetch event; verify is_locked ──────────────────────────────
         $event = $this->eventModel->findById($eventId);
@@ -394,6 +420,10 @@ final class CertificateBulkService
 
         foreach ($recipients as $recipient) {
             $report['total_processed']++;
+            $this->cumulativeProcessed++;
+            if ($this->progressCallback !== null) {
+                ($this->progressCallback)($this->cumulativeProcessed, count($recipients));
+            }
             $appId     = (int)$recipient['application_id'];
             $studentId = (int)($recipient['recipient_student_id'] ?? 0) ?: null;
 
@@ -529,6 +559,10 @@ final class CertificateBulkService
                     'reason'     => 'Success',
                 ];
 
+                unset($pdfBytes);
+                if ($report['total_processed'] % 25 === 0) {
+                    gc_collect_cycles();
+                }
             } catch (\Throwable $e) {
                 if ($db->inTransaction()) {
                     $db->rollBack();
@@ -585,6 +619,9 @@ final class CertificateBulkService
         ?int $participantTemplateId = null
     ): array
     {
+        @ignore_user_abort(true);
+        @set_time_limit(0);
+
         $events = $this->eventModel->getBySymposium($symposiumId);
 
         $aggregatedReport = [

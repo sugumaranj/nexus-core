@@ -6,7 +6,10 @@ namespace App\Core;
 
 final class Logger
 {
-    private static string $logFile = __DIR__ . '/../../storage/logs/nexuscore-error.log';
+    private static function getLogFile(): string
+    {
+        return __DIR__ . '/../../storage/logs/nexuscore-' . date('Y-m-d') . '.log';
+    }
 
     public static function error(string $message, array $context = []): void
     {
@@ -25,7 +28,8 @@ final class Logger
 
     private static function log(string $level, string $message, array $context = []): void
     {
-        $dir = dirname(self::$logFile);
+        $logFile = self::getLogFile();
+        $dir = dirname($logFile);
         if (!is_dir($dir)) {
             mkdir($dir, 0777, true);
         }
@@ -44,6 +48,6 @@ final class Logger
         
         $logEntry = "[$date] $level: $message $contextString" . PHP_EOL;
         
-        file_put_contents(self::$logFile, $logEntry, FILE_APPEND);
+        @file_put_contents($logFile, $logEntry, FILE_APPEND | LOCK_EX);
     }
 }

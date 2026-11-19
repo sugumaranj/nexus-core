@@ -86,6 +86,15 @@ final class AuthController extends BaseController
     {
         Session::start();
 
+        $rateLimiter = new \App\Services\RateLimiterService();
+        $clientIp = \App\Services\RateLimiterService::getClientIp();
+
+        if ($rateLimiter->isRateLimited($clientIp, '/login', 5, 300)) {
+            http_response_code(429);
+            $this->error('Too many failed login attempts. Please wait 5 minutes before trying again.');
+            $this->redirect('/login');
+        }
+
         /*
         |--------------------------------------------------------------------------
         | Retrieve Form Data
@@ -118,6 +127,7 @@ final class AuthController extends BaseController
         */
 
         if (!$this->authService->login($email, $password)) {
+            $rateLimiter->recordAttempt($clientIp, '/login');
 
             $this->error(
                 'Invalid email or password.'
@@ -125,6 +135,8 @@ final class AuthController extends BaseController
 
             $this->redirect('/login');
         }
+
+        $rateLimiter->clearAttempts($clientIp, '/login');
 
         /*
         |--------------------------------------------------------------------------

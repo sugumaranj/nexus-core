@@ -150,19 +150,76 @@ final class AttendanceRecordModel extends BaseModel
     // =========================================================================
 
     /**
+     * Check whether a finalized Prelims Shortlist exists for this event.
+     */
+    public function hasFinalizedPrelimsShortlist(int $symposiumEventId): bool
+    {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*)
+                FROM prelims_shortlist
+                WHERE symposium_event_id = :eid
+                  AND selection_status = 'Selected'
+            ");
+            $stmt->execute(['eid' => $symposiumEventId]);
+            return (int) $stmt->fetchColumn() > 0;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Return a student's latest attendance status ('Present' | 'Late' | 'Absent' | null)
+     * in the event's Prelims attendance sessions (Open or Closed).
+     */
+    public function getStudentPrelimsAttendanceStatus(int $symposiumEventId, int $studentId): ?string
+    {
+        try {
+            $sql = "
+                SELECT ar.attendance_status
+                FROM attendance_records ar
+                INNER JOIN attendance_sessions s ON s.session_id = ar.session_id
+                WHERE s.symposium_event_id = :eid
+                  AND s.round_type = 'Prelims'
+                  AND ar.student_id = :sid
+                ORDER BY COALESCE(ar.updated_at, ar.marked_at) DESC, ar.attendance_id DESC
+                LIMIT 1
+            ";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute(['eid' => $symposiumEventId, 'sid' => $studentId]);
+            $val = $stmt->fetchColumn();
+            return $val !== false ? (string) $val : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
      * -------------------------------------------------------------------------
      * Get all registered participants for a Symposium Event, with current
      * session attendance status (LEFT JOIN — NULL means unmarked).
      *
-     * Only applications not Withdrawn or Cancelled are included.
+     * When $roundType === 'Main' AND a finalized prelims_shortlist exists for
+     * the event, ONLY shortlisted finalists (selection_status = 'Selected') are
+     * returned for Main Event attendance.
      *
-     * @param int $symposiumEventId
-     * @param int $sessionId     Current active session ID (0 = no session yet)
+     * @param int    $symposiumEventId
+     * @param int    $sessionId     Current active session ID (0 = no session yet)
+     * @param string $roundType     'Main' | 'Prelims'
      * @return array
      * -------------------------------------------------------------------------
      */
-    public function getParticipantsForEventAttendance(int $symposiumEventId, int $sessionId = 0): array
-    {
+    public function getParticipantsForEventAttendance(
+        int $symposiumEventId,
+        int $sessionId = 0,
+        string $roundType = 'Main'
+    ): array {
+        $round = AttendanceSessionModel::normalizeRoundType($roundType);
+        $filterShortlist = ($round === 'Main') && $this->hasFinalizedPrelimsShortlist($symposiumEventId);
+        $shortlistJoin = $filterShortlist
+            ? "INNER JOIN prelims_shortlist ps ON ps.application_id = p.application_id AND ps.symposium_event_id = :symposium_event_id4 AND ps.selection_status = 'Selected'"
+            : '';
+
         $sql = "
             SELECT
                 p.application_id,
@@ -202,8 +259,10 @@ final class AttendanceRecordModel extends BaseModel
                   AND a.application_type = 'Team'
                   AND a.application_status NOT IN ('Withdrawn', 'Cancelled')
             ) AS p
+            {$shortlistJoin}
             INNER JOIN students s        ON s.student_id        = p.student_id
-            INNER JOIN departments d     ON d.department_id     = s.department_id
+            LEFT  JOIN departments d     ON d.department_id     = s.department_id
+            LEFT  JOIN colleges c        ON c.college_id        = s.college_id
             LEFT  JOIN attendance_records ar
                 ON  ar.session_id           = :session_id
                 AND ar.student_id           = p.student_id
@@ -211,13 +270,18 @@ final class AttendanceRecordModel extends BaseModel
             ORDER BY d.department_name ASC, s.full_name ASC
         ";
 
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([
+        $params = [
             'symposium_event_id'  => $symposiumEventId,
             'symposium_event_id2' => $symposiumEventId,
             'symposium_event_id3' => $symposiumEventId,
             'session_id'          => $sessionId,
-        ]);
+        ];
+        if ($filterShortlist) {
+            $params['symposium_event_id4'] = $symposiumEventId;
+        }
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
@@ -237,7 +301,9 @@ final class AttendanceRecordModel extends BaseModel
                 ar.*,
                 s.full_name       AS student_name,
                 s.register_number,
-                d.department_name,
+                COALESCE(s.external_department, d.short_name, d.department_name) AS department_name,
+                COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name,
+                s.student_type,
                 u.full_name       AS marked_by_name
             FROM attendance_records ar
             INNER JOIN students    s ON s.student_id    = ar.student_id
@@ -262,43 +328,75 @@ final class AttendanceRecordModel extends BaseModel
      * @return array  ['total_registered', 'present', 'absent', 'late', 'unmarked', 'attendance_pct']
      * -------------------------------------------------------------------------
      */
-    public function getSummaryByEvent(int $symposiumEventId): array
+    public function getSummaryByEvent(int $symposiumEventId, string $roundType = 'Main'): array
     {
-        // Total registered (not withdrawn/cancelled)
-        $totalStmt = $this->db->prepare("
-            SELECT COUNT(DISTINCT s_id) FROM (
-                SELECT a.student_id AS s_id 
+        $round = AttendanceSessionModel::normalizeRoundType($roundType);
+        $filterShortlist = ($round === 'Main') && $this->hasFinalizedPrelimsShortlist($symposiumEventId);
+        $shortlistJoin = $filterShortlist
+            ? "INNER JOIN prelims_shortlist ps ON ps.application_id = unique_students.app_id AND ps.symposium_event_id = :eid3 AND ps.selection_status = 'Selected'"
+            : '';
+
+        // Total eligible (not withdrawn/cancelled; filtered to finalists for Main when prelims shortlist exists)
+        $totalSql = "
+            SELECT COUNT(DISTINCT unique_students.s_id) FROM (
+                SELECT a.application_id AS app_id, a.student_id AS s_id 
                 FROM applications a
                 WHERE a.symposium_event_id = :eid AND a.application_type = 'Individual'
                   AND a.application_status NOT IN ('Withdrawn', 'Cancelled')
                 UNION ALL
-                SELECT tm.student_id AS s_id
+                SELECT a.application_id AS app_id, tm.student_id AS s_id
                 FROM team_members tm
                 INNER JOIN teams t ON tm.team_id = t.team_id
                 INNER JOIN applications a ON t.application_id = a.application_id
                 WHERE a.symposium_event_id = :eid2 AND a.application_type = 'Team'
                   AND a.application_status NOT IN ('Withdrawn', 'Cancelled')
             ) AS unique_students
-        ");
-        $totalStmt->execute(['eid' => $symposiumEventId, 'eid2' => $symposiumEventId]);
+            {$shortlistJoin}
+        ";
+        $totalParams = ['eid' => $symposiumEventId, 'eid2' => $symposiumEventId];
+        if ($filterShortlist) {
+            $totalParams['eid3'] = $symposiumEventId;
+        }
+        $totalStmt = $this->db->prepare($totalSql);
+        $totalStmt->execute($totalParams);
         $totalRegistered = (int) $totalStmt->fetchColumn();
 
-        // Attendance counts from most recent session for this event
-        $statsStmt = $this->db->prepare("
-            SELECT
-                SUM(ar.attendance_status = 'Present') AS present,
-                SUM(ar.attendance_status = 'Absent')  AS absent,
-                SUM(ar.attendance_status = 'Late')    AS late
-            FROM attendance_records ar
-            WHERE ar.symposium_event_id = :eid
-              AND ar.session_id = (
-                  SELECT session_id FROM attendance_sessions
-                  WHERE symposium_event_id = :eid2
-                  ORDER BY opened_at DESC
-                  LIMIT 1
-              )
-        ");
-        $statsStmt->execute(['eid' => $symposiumEventId, 'eid2' => $symposiumEventId]);
+        // Attendance counts from most recent session for this event & round
+        $sessionModel = new AttendanceSessionModel();
+        if ($sessionModel->supportsRounds()) {
+            $statsStmt = $this->db->prepare("
+                SELECT
+                    SUM(ar.attendance_status = 'Present') AS present,
+                    SUM(ar.attendance_status = 'Absent')  AS absent,
+                    SUM(ar.attendance_status = 'Late')    AS late
+                FROM attendance_records ar
+                WHERE ar.symposium_event_id = :eid
+                  AND ar.session_id = (
+                      SELECT session_id FROM attendance_sessions
+                      WHERE symposium_event_id = :eid2
+                        AND round_type = :round_type
+                      ORDER BY opened_at DESC
+                      LIMIT 1
+                  )
+            ");
+            $statsStmt->execute(['eid' => $symposiumEventId, 'eid2' => $symposiumEventId, 'round_type' => $round]);
+        } else {
+            $statsStmt = $this->db->prepare("
+                SELECT
+                    SUM(ar.attendance_status = 'Present') AS present,
+                    SUM(ar.attendance_status = 'Absent')  AS absent,
+                    SUM(ar.attendance_status = 'Late')    AS late
+                FROM attendance_records ar
+                WHERE ar.symposium_event_id = :eid
+                  AND ar.session_id = (
+                      SELECT session_id FROM attendance_sessions
+                      WHERE symposium_event_id = :eid2
+                      ORDER BY opened_at DESC
+                      LIMIT 1
+                  )
+            ");
+            $statsStmt->execute(['eid' => $symposiumEventId, 'eid2' => $symposiumEventId]);
+        }
         $row = $statsStmt->fetch(PDO::FETCH_ASSOC);
 
         $present  = (int) ($row['present'] ?? 0);
@@ -397,11 +495,14 @@ final class AttendanceRecordModel extends BaseModel
                 s.register_number,
                 s.full_name AS student_name,
                 s.academic_year AS student_year,
-                d.department_name
+                COALESCE(s.external_department, d.short_name, d.department_name) AS department_name,
+                COALESCE(c.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name,
+                s.student_type
             FROM attendance_records ar
             INNER JOIN applications a ON a.application_id = ar.application_id
             INNER JOIN students s     ON s.student_id = ar.student_id
-            INNER JOIN departments d  ON d.department_id = s.department_id
+            LEFT  JOIN departments d  ON d.department_id = s.department_id
+            LEFT  JOIN colleges    c  ON c.college_id    = s.college_id
             LEFT JOIN teams t         ON t.application_id = a.application_id
             WHERE ar.session_id = :session_id
               AND ar.symposium_event_id = :symposium_event_id1
@@ -446,7 +547,8 @@ final class AttendanceRecordModel extends BaseModel
                     d.department_name
                 FROM applications a
                 INNER JOIN students s    ON s.student_id    = a.student_id
-                INNER JOIN departments d ON d.department_id = s.department_id
+                LEFT  JOIN departments d ON d.department_id = s.department_id
+                LEFT  JOIN colleges    c ON c.college_id    = s.college_id
                 WHERE a.symposium_event_id = :id1
                   AND a.application_status = 'Approved'
                   AND a.application_type   = 'Individual'
@@ -467,7 +569,8 @@ final class AttendanceRecordModel extends BaseModel
                 INNER JOIN teams t         ON t.application_id = a.application_id
                 INNER JOIN team_members tm ON tm.team_id       = t.team_id
                 INNER JOIN students s      ON s.student_id     = tm.student_id
-                INNER JOIN departments d   ON d.department_id  = s.department_id
+                LEFT  JOIN departments d   ON d.department_id  = s.department_id
+                LEFT  JOIN colleges    c   ON c.college_id     = s.college_id
                 WHERE a.symposium_event_id = :id2
                   AND a.application_status = 'Approved'
                   AND a.application_type   = 'Team'

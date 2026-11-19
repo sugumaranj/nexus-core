@@ -1,16 +1,21 @@
-# Use the official PHP 8.2 image with Apache pre-installed
-FROM php:8.2-apache
+# Use the official PHP 8.5 image with Apache pre-installed
+FROM php:8.5-apache
 
 # Install required system packages and PHP extensions
 # - git, unzip, libzip-dev: Required for Composer to work properly
-# - libpng-dev, gd: Helpful for PDF/Image processing (dompdf, fpdf)
+# - libfreetype6-dev, libjpeg62-turbo-dev, libpng-dev, libwebp-dev: Required for full GD image processing
 # - pdo_mysql, mysqli: Required to connect to a MySQL database
+# - opcache: Bytecode caching for optimal performance
 RUN apt-get update && apt-get install -y \
     git \
     unzip \
-    libzip-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
     libpng-dev \
-    && docker-php-ext-install pdo pdo_mysql mysqli zip gd
+    libwebp-dev \
+    libzip-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) gd pdo pdo_mysql mysqli zip opcache
 
 # Enable Apache's mod_rewrite module, which is necessary if you use .htaccess for URL routing
 RUN a2enmod rewrite

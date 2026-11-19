@@ -1,0 +1,27 @@
+NexusCore
+Copyright (c) 2026 Sugumaran J. All rights reserved.
+
+This product includes software developed by open-source communities and third parties.
+
+1. This product contains software developed by the Apache Software Foundation,
+   Google Inc., Mozilla Foundation, and Naptha OCR contributors.
+   - Mozilla PDF.js (https://mozilla.github.io/pdf.js)
+   - Tesseract.js (https://github.com/naptha/tesseract.js)
+   - Puppeteer-Core (https://github.com/puppeteer/puppeteer)
+   - phpoption (https://github.com/schmittjoh/php-option)
+
+2. This product contains libraries licensed under the GNU Lesser General Public License:
+   - Dompdf (https://github.com/dompdf/dompdf)
+   - PHPMailer (https://github.com/PHPMailer/PHPMailer)
+   - Smalot PDFParser (https://www.pdfparser.org)
+
+3. This product contains software licensed under the MIT and BSD Licenses, including:
+   - Bootstrap (The Bootstrap Authors / Twitter, Inc.)
+   - Chart.js (Chart.js Contributors)
+   - Flatpickr (Gregory Petrosyan)
+   - FPDF & FPDI (Setasign / Olivier Plathey)
+   - phpdotenv (Vance Lucas / Graham Campbell)
+
+For a complete and detailed inventory of all third-party components, copyright holders,
+and corresponding license terms, please see the THIRD_PARTY_NOTICES.md file located
+in the root directory of this software.

@@ -25,7 +25,8 @@ declare(strict_types=1);
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="mb-1"><?= htmlspecialchars($symposium['title'], ENT_QUOTES, 'UTF-8') ?></h2>
-            <span class="badge bg-secondary"><?= htmlspecialchars($symposium['symposium_type'], ENT_QUOTES, 'UTF-8') ?></span>
+            <?php $sTypeClass = ($symposium['symposium_type'] ?? '') === 'Inter College' ? 'bg-success' : ((($symposium['symposium_type'] ?? '') === 'Inter Department') ? 'bg-info text-dark' : 'bg-secondary'); ?>
+            <span class="badge <?= $sTypeClass ?>"><?= htmlspecialchars($symposium['symposium_type'], ENT_QUOTES, 'UTF-8') ?></span>
         </div>
     </div>
 

@@ -106,6 +106,9 @@ class StudentRegistrationController extends BaseController
 
         if ($result['success']) {
             Session::flash('success', $result['message']);
+            if (!empty($result['payment_required']) && !empty($result['application_id'])) {
+                $this->redirect('/student/payment/checkout?application_id=' . (int)$result['application_id']);
+            }
             $this->redirect('/student/my-registrations');
         } else {
             Session::flash('error', $result['message']);
