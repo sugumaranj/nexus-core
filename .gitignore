@@ -69,3 +69,12 @@ test_vector.pdf
 # Generated Reports
 NexusCore_Technical_Report.md
 NexusCore_Project_Report.pdf
+
+# Prelims Storage
+/storage/prelims_pdfs/*
+!/storage/prelims_pdfs/.gitkeep
+
+# Documentation
+/Final Documentation of the Product/
+/docs/
+

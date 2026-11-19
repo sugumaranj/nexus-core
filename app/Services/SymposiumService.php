@@ -101,6 +101,7 @@ final class SymposiumService
     private array $allowedTypes = [
         'Intra Department',
         'Inter Department',
+        'Inter College',
     ];
 
     public function __construct()

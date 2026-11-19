@@ -76,7 +76,7 @@ $success = Session::getFlash('success');
 
                         <p class="text-muted">
 
-                            Enter your register number and password to continue.
+                            Enter your register number or registered email and password to continue.
 
                         </p>
 
@@ -150,7 +150,7 @@ $success = Session::getFlash('success');
                                     id="register_number"
                                     name="register_number"
                                     class="form-control"
-                                    placeholder="e.g. C4S35637"
+                                    placeholder="e.g. 22CS01 or student@college.edu"
                                     value="<?= htmlspecialchars($_POST['register_number'] ?? '', ENT_QUOTES, 'UTF-8') ?>"
                                     required
                                     autofocus
@@ -221,6 +221,20 @@ $success = Session::getFlash('success');
                     <!-- ======================================================
                          Staff Login Link
                     ====================================================== -->
+
+                    <!-- Inter-College Visiting Student Callout -->
+                    <div class="card bg-light border-0 rounded-3 p-3 mt-4 text-center">
+                        <div class="d-flex align-items-center justify-content-center gap-2 mb-1">
+                            <i class="bi bi-building text-primary"></i>
+                            <span class="small fw-semibold text-dark">Visiting from another college?</span>
+                        </div>
+                        <p class="small text-muted mb-2">Register to participate in inter-college symposiums &amp; competitions.</p>
+                        <div>
+                            <a href="<?= base_url(); ?>/student/register" class="btn btn-sm btn-outline-primary fw-semibold px-3 rounded-pill">
+                                <i class="bi bi-person-plus-fill me-1"></i> Register as External Student
+                            </a>
+                        </div>
+                    </div>
 
                     <hr class="my-4">
 

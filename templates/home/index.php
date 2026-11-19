@@ -107,29 +107,35 @@ declare(strict_types=1);
 
                 </li>
 
-                <li class="nav-item ms-lg-3">
+                <li class="nav-item ms-lg-3 nav-action-group">
 
                     <a
                         href="<?= base_url(); ?>/login"
-                        class="btn btn-outline-primary mb-2 mb-lg-0">
+                        class="btn-nav btn-nav-ghost">
 
-                        <i class="bi bi-person-badge me-2"></i>
+                        <i class="bi bi-person-badge"></i>
 
                         Staff Login
 
                     </a>
 
-                </li>
+                    <a
+                        href="<?= base_url(); ?>/student/register"
+                        class="btn-nav btn-nav-outline">
 
-                <li class="nav-item ms-lg-2">
+                        <i class="bi bi-building"></i>
+
+                        External Register
+
+                    </a>
 
                     <a
                         href="<?= base_url(); ?>/student/login"
-                        class="btn btn-primary">
+                        class="btn-nav btn-nav-primary">
 
-                        <i class="bi bi-mortarboard-fill me-2"></i>
+                        <i class="bi bi-mortarboard-fill"></i>
 
-                        Student Login
+                        Student Portal
 
                     </a>
 
@@ -157,11 +163,17 @@ declare(strict_types=1);
 
             <div class="col-lg-6">
 
-                <span class="badge bg-primary mb-3 fs-6">
+                <a href="<?= base_url(); ?>/student/register" class="hero-announcement-badge text-decoration-none mb-3">
 
-                    Secure • Intelligent • Scalable
+                    <span class="badge bg-primary rounded-pill px-2 py-1 small">New</span>
 
-                </span>
+                    <span class="text-dark fw-medium small">Inter-College Symposiums 2026</span>
+
+                    <span class="text-primary fw-semibold small d-inline-flex align-items-center">
+                        External Registration Open <i class="bi bi-arrow-right ms-1"></i>
+                    </span>
+
+                </a>
 
                 <h1 class="display-4 fw-bold">
 
@@ -175,7 +187,7 @@ declare(strict_types=1);
 
                 </h1>
 
-                <p class="lead text-muted mt-4">
+                <p class="lead text-muted mt-3 mb-4">
 
                     NexusCore is a secure and intelligent academic symposium
                     management platform designed to simplify event planning,
@@ -188,34 +200,46 @@ declare(strict_types=1);
 
                 </p>
 
-                <div class="mt-4">
+                <div class="hero-actions-row mb-4">
 
                     <a
-                        href="<?= base_url(); ?>/login"
-                        class="btn btn-outline-primary btn-lg me-3 mb-2 mb-lg-0">
+                        href="<?= base_url(); ?>/student/login"
+                        class="btn-hero btn-hero-primary">
 
-                        <i class="bi bi-person-badge me-2"></i>
+                        <i class="bi bi-mortarboard-fill"></i>
 
-                        Staff Login
+                        Student Portal
 
                     </a>
 
                     <a
-                        href="<?= base_url(); ?>/student/login"
-                        class="btn btn-primary btn-lg me-3">
+                        href="<?= base_url(); ?>/student/register"
+                        class="btn-hero btn-hero-secondary">
 
-                        <i class="bi bi-mortarboard-fill me-2"></i>
+                        <i class="bi bi-building"></i>
 
-                        Student Login
+                        Inter-College Register
 
                     </a>
 
                     <a
                         href="#features"
-                        class="btn btn-outline-primary btn-lg">
+                        class="btn-hero btn-hero-outline">
 
-                        Learn More
+                        <i class="bi bi-compass"></i>
 
+                        Explore Features
+
+                    </a>
+
+                </div>
+
+                <div class="mt-3 text-muted small">
+
+                    <i class="bi bi-shield-lock me-1"></i> Staff coordinator, HOD, or faculty judge?
+
+                    <a href="<?= base_url(); ?>/login" class="text-primary fw-semibold text-decoration-none ms-1">
+                        Staff Login &rarr;
                     </a>
 
                 </div>
@@ -226,23 +250,27 @@ declare(strict_types=1);
 
             <div class="col-lg-6 text-center">
 
-                <img
-                    src="<?= asset('assets/images/logo/nexuscore-logo.png'); ?>"
-                    alt="NexusCore Logo"
-                    class="img-fluid"
-                    style="max-width:220px;">
+                <div class="hero-showcase-card">
 
-                <h4 class="fw-bold mt-4">
+                    <img
+                        src="<?= asset('assets/images/logo/nexuscore-logo.png'); ?>"
+                        alt="NexusCore Logo"
+                        class="img-fluid mb-3"
+                        style="max-width: 170px;">
 
-                    NexusCore
+                    <h4 class="fw-bold text-dark mb-1">
 
-                </h4>
+                        NexusCore
 
-                <p class="text-muted">
+                    </h4>
 
-                    Simplifying Academic Event Management
+                    <p class="text-muted small mb-0">
 
-                </p>
+                        Academic Symposium Management Platform
+
+                    </p>
+
+                </div>
 
             </div>
 

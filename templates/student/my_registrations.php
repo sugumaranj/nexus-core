@@ -99,6 +99,15 @@ declare(strict_types=1);
                                     }
                                     ?>
                                     <span class="badge bg-<?= $statusClass ?>"><?= htmlspecialchars($app['application_status'], ENT_QUOTES, 'UTF-8') ?></span>
+                                    <?php if (($app['payment_status'] ?? '') === 'Pending'): ?>
+                                        <br><a href="<?= base_url(); ?>/student/payment/checkout?application_id=<?= (int)$app['application_id'] ?>" class="btn btn-sm btn-primary mt-1 py-0 px-2 fw-bold shadow-sm">
+                                            <i class="bi bi-credit-card me-1"></i>Pay Fee
+                                        </a>
+                                    <?php elseif (($app['payment_status'] ?? '') === 'Paid'): ?>
+                                        <br><span class="badge bg-success-subtle text-success border border-success-subtle small mt-1">
+                                            <i class="bi bi-check-circle me-1"></i>Fee Paid
+                                        </span>
+                                    <?php endif; ?>
                                 </td>
                                 <td><?= \App\Helpers\DateHelper::dateTime($app['applied_at']) ?></td>
                                 <td>

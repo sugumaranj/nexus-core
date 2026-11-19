@@ -1,10 +1,13 @@
 <?php declare(strict_types=1); ?>
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
         <h1 class="h3 mb-0 text-gray-800">
             <?= htmlspecialchars($page_title ?? 'Generate Certificates', ENT_QUOTES, 'UTF-8') ?>
         </h1>
-        <div>
+        <div class="d-flex gap-2">
+            <a href="<?= base_url('/certificates/generated') ?>" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-award"></i> View Certificates
+            </a>
             <a href="<?= base_url('/certificates/symposium-batch') ?>" class="btn btn-outline-primary btn-sm">
                 <i class="bi bi-stack"></i> Switch to Symposium Batch
             </a>
@@ -15,6 +18,79 @@
     <div class="alert alert-<?= htmlspecialchars($flash_message['type'] ?? 'info', ENT_QUOTES, 'UTF-8') ?> alert-dismissible fade show mb-4" role="alert">
         <?= htmlspecialchars($flash_message['text'] ?? '', ENT_QUOTES, 'UTF-8') ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
+
+    <!-- ── Recent Background Generation Jobs ─────────────────────────── -->
+    <?php if (!empty($recent_jobs)): ?>
+    <div class="card shadow-sm mb-4 border-info">
+        <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-dark">
+                <i class="bi bi-clock-history text-info me-2"></i> Recent Background Generation Jobs
+            </h6>
+            <span class="badge bg-secondary"><?= count($recent_jobs) ?> Recent</span>
+        </div>
+        <div class="card-body p-0 table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Submitted At</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($recent_jobs as $rj): ?>
+                    <tr>
+                        <td><span class="font-monospace fw-bold">#<?= (int)$rj['job_id'] ?></span></td>
+                        <td>
+                            <div class="fw-semibold"><?= htmlspecialchars($rj['event_name'] ?? $rj['symposium_title'] ?? 'Symposium Event', ENT_QUOTES, 'UTF-8') ?></div>
+                            <small class="text-muted"><?= htmlspecialchars($rj['job_type']) ?></small>
+                        </td>
+                        <td>
+                            <?php if ($rj['status'] === 'Completed'): ?>
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>
+                            <?php elseif ($rj['status'] === 'Processing'): ?>
+                                <span class="badge bg-primary"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Processing</span>
+                            <?php elseif ($rj['status'] === 'Failed'): ?>
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i>Failed</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small fw-semibold"><?= (int)$rj['processed_items'] ?> / <?= (int)$rj['total_items'] ?></span>
+                                <?php $pct = $rj['total_items'] > 0 ? min(100, round(($rj['processed_items'] / $rj['total_items']) * 100)) : ($rj['status'] === 'Completed' ? 100 : 0); ?>
+                                <div class="progress flex-grow-1" style="height: 6px; width: 60px;">
+                                    <div class="progress-bar <?= $rj['status'] === 'Completed' ? 'bg-success' : 'bg-primary' ?>" style="width: <?= $pct ?>%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="small text-muted"><?= htmlspecialchars((string)$rj['created_at']) ?></td>
+                        <td class="text-end text-nowrap">
+                            <a href="<?= base_url('/certificates/job-progress?job_id=' . (int)$rj['job_id']) ?>" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2" title="Track Live Status">
+                                <i class="bi bi-activity"></i> Status
+                            </a>
+                            <?php if ($rj['status'] === 'Completed'): ?>
+                                <a href="<?= base_url('/certificates/report?job_id=' . (int)$rj['job_id']) ?>" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">
+                                    <i class="bi bi-file-earmark-text"></i> Report
+                                </a>
+                                <?php if (!empty($rj['symposium_event_id'])): ?>
+                                    <a href="<?= base_url('/certificates/generated?event_id=' . (int)$rj['symposium_event_id']) ?>" class="btn btn-xs btn-outline-success btn-sm py-0 px-2">
+                                        <i class="bi bi-award"></i> View
+                                    </a>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
     <?php endif; ?>
 
@@ -53,7 +129,6 @@
                     </select>
                 </div>
                 <div class="col-md-2 d-none d-md-block">
-                    <!-- Button preserved for accessibility/no-js fallback, visually hidden on md+ since onchange is active -->
                     <button type="submit" class="btn btn-outline-primary w-100">
                         <i class="bi bi-search me-1"></i> Load
                     </button>
@@ -63,18 +138,25 @@
     </div>
 
     <!-- ── Combined Generation Form ───────────────────────────────────── -->
-    <form method="post" action="<?= base_url('/certificates/generate') ?>">
+    <form id="certificateGenerationForm" method="post" action="<?= base_url('/certificates/generate') ?>">
         <input type="hidden" name="_token" value="<?= htmlspecialchars(\App\Core\Session::get('_token', ''), ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="action" value="generate_both">
+        <input type="hidden" id="actionInput" name="action" value="generate_both">
         <input type="hidden" name="event_id" value="<?= (int)($selected_event ?? 0) ?>">
 
         <div class="row g-4 mb-4">
             <!-- Card 1: Winner Certificate Generation -->
             <div class="col-lg-6">
                 <div class="card shadow h-100 border-warning">
-                    <div class="card-header bg-warning text-dark fw-bold">
-                        <i class="bi bi-trophy-fill me-2"></i> Winner Certificates
-                        <span class="badge bg-dark ms-2">Rank 1 / 2 / 3</span>
+                    <div class="card-header bg-warning text-dark fw-bold d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-trophy-fill me-2"></i> Winner Certificates
+                            <span class="badge bg-dark ms-2">Rank 1 / 2 / 3</span>
+                        </div>
+                        <?php if (!empty($selected_event)): ?>
+                        <button type="button" class="btn btn-sm btn-dark" onclick="submitCustomAction('generate_winners')">
+                            Generate Winners Only
+                        </button>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <!-- Template selector (Winner templates only) -->
@@ -116,9 +198,16 @@
             <!-- Card 2: Participant Certificate Generation -->
             <div class="col-lg-6">
                 <div class="card shadow h-100 border-primary">
-                    <div class="card-header bg-primary text-white fw-bold">
-                        <i class="bi bi-person-check-fill me-2"></i> Participant Certificates
-                        <span class="badge bg-light text-primary ms-2">Attendance Based</span>
+                    <div class="card-header bg-primary text-white fw-bold d-flex justify-content-between align-items-center">
+                        <div>
+                            <i class="bi bi-person-check-fill me-2"></i> Participant Certificates
+                            <span class="badge bg-light text-primary ms-2">Attendance Based</span>
+                        </div>
+                        <?php if (!empty($selected_event)): ?>
+                        <button type="button" class="btn btn-sm btn-light text-primary" onclick="submitCustomAction('generate_participants')">
+                            Generate Participants Only
+                        </button>
+                        <?php endif; ?>
                     </div>
                     <div class="card-body">
                         <!-- Template selector (Participant templates only) -->
@@ -160,10 +249,64 @@
         
         <div class="row">
             <div class="col-12">
-                <button type="submit" class="btn btn-success btn-lg w-100 shadow-sm" <?= empty($selected_event) ? 'disabled' : '' ?>>
-                    <i class="bi bi-magic me-2"></i> Generate Both Winners & Participants
+                <button type="submit" id="btnSubmitGenerate" class="btn btn-success btn-lg w-100 shadow-sm py-3" <?= empty($selected_event) ? 'disabled' : '' ?>>
+                    <i class="bi bi-magic me-2"></i> Generate Both Winners &amp; Participants
                 </button>
             </div>
         </div>
     </form>
 </div>
+
+<script>
+function submitCustomAction(actionName) {
+    const form = document.getElementById('certificateGenerationForm');
+    const actionInput = document.getElementById('actionInput');
+    actionInput.value = actionName;
+    form.requestSubmit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('certificateGenerationForm');
+    const submitBtn = document.getElementById('btnSubmitGenerate');
+
+    if (form && submitBtn) {
+        form.addEventListener('submit', async function(e) {
+            // Optional AJAX progressive enhancement
+            if (window.fetch && window.FormData) {
+                e.preventDefault();
+                submitBtn.disabled = true;
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Initializing Background Worker...';
+
+                const formData = new FormData(form);
+                formData.append('is_ajax', '1');
+
+                try {
+                    const response = await fetch(form.action, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.redirect_url) {
+                            window.location.href = data.redirect_url;
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Generate Form] AJAX fetch encountered notice, falling back to standard POST:', err);
+                }
+
+                // Fallback to standard submit if AJAX failed
+                submitBtn.innerHTML = originalHtml;
+                form.submit();
+            }
+        });
+    }
+});
+</script>

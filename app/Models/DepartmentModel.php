@@ -81,7 +81,7 @@ final class DepartmentModel extends BaseModel
     public function findById(int $departmentId): array|false
     {
         $sql = "
-            SELECT *
+            SELECT department_id, department_code, department_name, short_name, is_active, created_at, updated_at
             FROM departments
             WHERE department_id = :department_id
         ";
@@ -111,7 +111,7 @@ final class DepartmentModel extends BaseModel
     public function findByCode(string $departmentCode): array|false
     {
         $sql = "
-            SELECT *
+            SELECT department_id, department_code, department_name, short_name, is_active, created_at, updated_at
             FROM departments
             WHERE department_code = :department_code
         ";
@@ -248,9 +248,9 @@ final class DepartmentModel extends BaseModel
     public function findByName(string $departmentName): array|false
     {
         $sql = "
-           SELECT *
-          FROM departments
-          WHERE department_name = :department_name
+           SELECT department_id, department_code, department_name, short_name, is_active, created_at, updated_at
+            FROM departments
+            WHERE department_name = :department_name
            LIMIT 1
         ";
 

@@ -101,6 +101,17 @@ class ChatbotController extends BaseController
      */
     private function enforceRateLimit(): void
     {
+        $rateLimiter = new \App\Services\RateLimiterService();
+        $clientIp = \App\Services\RateLimiterService::getClientIp();
+
+        if ($rateLimiter->isRateLimited($clientIp, '/api/chatbot', 20, 60)) {
+            http_response_code(429);
+            $this->jsonResponse(['success' => false, 'response_type' => 'ERROR', 'message' => 'You are sending messages too quickly. Please wait a minute.']);
+            exit;
+        }
+
+        $rateLimiter->recordAttempt($clientIp, '/api/chatbot');
+
         $currentTime = time();
         $rateData = Session::get('chatbot_rate', ['count' => 0, 'start' => $currentTime]);
 

@@ -356,25 +356,29 @@ final class FacultyInChargeService
             $stmt = $this->db->prepare("UPDATE symposium_events SET prelim_decision = :dec WHERE symposium_event_id = :id");
             $stmt->execute(['dec' => $prelimDecision, 'id' => $symposiumEventId]);
 
-            // 2. Clear existing stages for this event (sync/replace strategy)
-            $delStmt = $this->db->prepare("DELETE FROM competition_stages WHERE symposium_event_id = :id");
-            $delStmt->execute(['id' => $symposiumEventId]);
+            // 2. Non-destructive diff/upsert of stages (preserves stage_id for linked quizzes & attendance)
+            $existingStages = $this->stageModel->getBySymposiumEvent($symposiumEventId);
+            $existingById   = [];
+            foreach ($existingStages as $es) {
+                $existingById[(int) $es['stage_id']] = $es;
+            }
 
-            // 3. Insert new stages if prelimDecision is 'Required'
+            $keptStageIds = [];
+            $validStageNames = ['Digital Prelims', 'Offline Prelims', 'Quarter Finals', 'Semi Finals', 'Finals', 'Custom'];
+
+            // 3. Upsert stages if prelimDecision is 'Required'
             if ($prelimDecision === 'Required' && !empty($stagesData)) {
                 $order = 1;
                 foreach ($stagesData as $stage) {
                     $stageName = $stage['stage_name'] ?? 'Custom';
-                    // Validate stage_name is a valid ENUM value
-                    $validStageNames = ['Digital Prelims', 'Offline Prelims', 'Quarter Finals', 'Semi Finals', 'Finals', 'Custom'];
-                    if (!in_array($stageName, $validStageNames)) {
+                    if (!in_array($stageName, $validStageNames, true)) {
                         $stageName = 'Custom';
                     }
 
-                    $insertData = [
+                    $payload = [
                         'symposium_event_id' => $symposiumEventId,
                         'stage_name'         => $stageName,
-                        'custom_name'        => !empty($stage['custom_name']) ? trim($stage['custom_name']) : null,
+                        'custom_name'        => !empty($stage['custom_name']) ? trim((string)$stage['custom_name']) : null,
                         'stage_order'        => $order++,
                         'stage_date'         => !empty($stage['stage_date']) ? $stage['stage_date'] : null,
                         'start_time'         => !empty($stage['start_time']) ? $stage['start_time'] : null,
@@ -384,11 +388,32 @@ final class FacultyInChargeService
                         'is_active'          => 1,
                     ];
 
-                    // Use addStage() — the correct method name in CompetitionStageModel
-                    $result = $this->stageModel->addStage($insertData);
-                    if ($result === false) {
-                        throw new \RuntimeException("Failed to insert stage: {$stageName}");
+                    $incomingId = (int) ($stage['stage_id'] ?? 0);
+                    if ($incomingId > 0 && isset($existingById[$incomingId])) {
+                        $ok = $this->stageModel->updateStage($incomingId, $payload);
+                        if (!$ok) {
+                            throw new \RuntimeException("Failed to update stage: {$stageName}");
+                        }
+                        $keptStageIds[] = $incomingId;
+                    } else {
+                        $newId = $this->stageModel->addStage($payload);
+                        if ($newId === false) {
+                            throw new \RuntimeException("Failed to insert stage: {$stageName}");
+                        }
+                        $keptStageIds[] = $newId;
                     }
+                }
+            }
+
+            // 4. Delete removed stages only if they have no linked prelims quiz or attendance sessions
+            foreach (array_keys($existingById) as $oldStageId) {
+                if (!in_array($oldStageId, $keptStageIds, true)) {
+                    if ($this->stageModel->hasLinkedData($oldStageId)) {
+                        throw new \RuntimeException(
+                            "Cannot remove stage #{$oldStageId} because it has a linked Prelims Quiz or Attendance session."
+                        );
+                    }
+                    $this->stageModel->deleteStageIfUnused($oldStageId);
                 }
             }
 

@@ -67,6 +67,12 @@ $error   = Session::getFlash('error');
                 <?= academic_year_label($student['academic_year'] ?? '') ?>
                 &nbsp;|&nbsp;
                 Semester <?= (int) ($student['semester'] ?? 0) ?>
+                <?php if (!empty($student['college_name'])): ?>
+                    &nbsp;|&nbsp;
+                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
+                        <i class="bi bi-building me-1"></i><?= htmlspecialchars($student['college_name'], ENT_QUOTES, 'UTF-8') ?>
+                    </span>
+                <?php endif; ?>
 
             </p>
 

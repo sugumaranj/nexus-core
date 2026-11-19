@@ -568,6 +568,7 @@ final class ReportService
      */
     public function generateRegistrationReportPdf(array $event, array $symposium, array $filters, array $applications, array $stats): void
     {
+        $isInterCollege = ($symposium['symposium_type'] ?? '') === 'Inter College';
         $settingModel = new \App\Models\SystemSettingModel();
         $rawLogoPath = $settingModel->getValue('COLLEGE_LOGO');
         
@@ -645,12 +646,13 @@ final class ReportService
                 </div>
                 <div class='stat-box'>
                     <div class='stat-title'>Filters Applied</div>
-                    <div class='stat-val' style='font-size: 11px;'>
-                        Status: {$filters['application_status']}<br>
-                        Type: {$filters['application_type']}<br>
-                        Dept: " . ($filters['department_name'] ?? 'All') . "<br>
-                        Year: " . (!empty($filters['academic_year']) ? academic_year_label($filters['academic_year']) : 'All') . "
-                    </div>
+                    <div class='stat-val' style='font-size: 10px; line-height: 1.4;'>
+                        Status: " . htmlspecialchars($filters['application_status'] ?? 'All', ENT_QUOTES) . "<br>" .
+                        ($isInterCollege || !empty($filters['college_name']) ? "College: " . htmlspecialchars($filters['college_name'] ?? 'All', ENT_QUOTES) . "<br>" : "") .
+                        "Type: " . htmlspecialchars($filters['application_type'] ?? 'All', ENT_QUOTES) . "<br>" .
+                        "Dept: " . htmlspecialchars($filters['department_name'] ?? 'All', ENT_QUOTES) . "<br>" .
+                        "Year: " . (!empty($filters['academic_year']) ? academic_year_label($filters['academic_year']) : 'All') .
+                    "</div>
                 </div>
             </div>";
 
@@ -674,16 +676,25 @@ final class ReportService
                 </h4>
                 <table>
                     <thead>
-                        <tr>
-                            <th style='width: 5%;'>S.No</th>
-                            <th style='width: 18%;'>Reg Number</th>
-                            <th style='width: 25%;'>Student Name</th>
-                            <th style='width: 15%;'>Department</th>
-                            <th style='width: 8%;'>Year</th>
-                            <th style='width: 12%; text-align: center;'>Type / Role</th>
-                            <th style='width: 10%; text-align: center;'>Status</th>
-                            <th style='width: 7%; text-align: center;'>Date</th>
-                        </tr>
+                        <tr>" .
+                            ($isInterCollege
+                                ? "<th style='width: 4%; text-align: center;'>S.No</th>
+                                   <th style='width: 14%;'>Reg Number</th>
+                                   <th style='width: 18%;'>Student Name</th>
+                                   <th style='width: 25%;'>College</th>
+                                   <th style='width: 13%;'>Department</th>
+                                   <th style='width: 7%; text-align: center;'>Year</th>
+                                   <th style='width: 9%; text-align: center;'>Type / Role</th>
+                                   <th style='width: 10%; text-align: center; white-space: nowrap;'>Date</th>"
+                                : "<th style='width: 5%; text-align: center;'>S.No</th>
+                                   <th style='width: 18%;'>Reg Number</th>
+                                   <th style='width: 26%;'>Student Name</th>
+                                   <th style='width: 20%;'>Department</th>
+                                   <th style='width: 8%; text-align: center;'>Year</th>
+                                   <th style='width: 11%; text-align: center;'>Type / Role</th>
+                                   <th style='width: 12%; text-align: center; white-space: nowrap;'>Date</th>"
+                            ) .
+                        "</tr>
                     </thead>
                     <tbody>";
 
@@ -695,14 +706,6 @@ final class ReportService
                     $date   = !empty($app['applied_at']) ? date('d-m-Y', strtotime($app['applied_at'])) : '—';
                     $teamId = !empty($app['team_id']) ? 'TEAM-' . $app['team_id'] : '';
 
-                    $statusColor = match($app['application_status'] ?? '') {
-                        'Approved'  => 'green',
-                        'Pending'   => 'orange',
-                        'Rejected', 'Cancelled', 'Withdrawn' => 'red',
-                        default     => 'black'
-                    };
-                    $statusLabel = "<span style='color:{$statusColor}; font-weight:bold;'>{$app['application_status']}</span>";
-
                     if ($isTeam) {
                         $roleLabel = $isLeader
                             ? "<span style='color:#856404; font-weight:bold;'>&#9733; Leader</span>"
@@ -713,23 +716,21 @@ final class ReportService
                     }
 
                     $rowBg = ($isTeam && $isLeader) ? "background-color:#fff8e1;" : "";
+                    $collegeCell = $isInterCollege
+                        ? "<td>" . htmlspecialchars($app['college_name'] ?? '—', ENT_QUOTES) . "</td>"
+                        : "";
 
                     $html .= "
                         <tr style='{$rowBg}'>
-                            <td>" . ($isTeam && !$isLeader ? '' : $sno++) . "</td>
+                            <td class='text-center'>" . ($isTeam && !$isLeader ? '' : $sno++) . "</td>
                             <td>" . htmlspecialchars($app['register_number'] ?? '', ENT_QUOTES) . "</td>
                             <td>" . htmlspecialchars($app['student_name']    ?? '', ENT_QUOTES) . "</td>
+                            {$collegeCell}
                             <td>" . htmlspecialchars($app['student_department'] ?? '', ENT_QUOTES) . "</td>
                             <td class='text-center'>" . htmlspecialchars((string)($app['student_year'] ?? ''), ENT_QUOTES) . "</td>
                             <td class='text-center' style='font-size:9px;'>{$typeCell}</td>
-                            <td class='text-center'>{$statusLabel}</td>
-                            <td class='text-center'>{$date}</td>
+                            <td class='text-center' style='white-space: nowrap;'>{$date}</td>
                         </tr>";
-
-                    // For team leader rows, increment sno once (leader = numbered, members = blank)
-                    if ($isTeam && $isLeader) {
-                        // sno already incremented above
-                    }
                 }
 
                 $html .= "

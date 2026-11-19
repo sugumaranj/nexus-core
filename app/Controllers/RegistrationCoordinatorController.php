@@ -97,6 +97,7 @@ class RegistrationCoordinatorController extends BaseController
         $filters = [
             'application_status' => $_GET['status'] ?? 'All',
             'department_id'      => $_GET['department_id'] ?? '',
+            'college_id'         => $_GET['college_id'] ?? '',
             'academic_year'      => $_GET['academic_year'] ?? '',
             'application_type'   => $_GET['application_type'] ?? 'All'
         ];
@@ -137,13 +138,15 @@ class RegistrationCoordinatorController extends BaseController
                 if ($resolved['participant_type'] === 'individual') {
                     $p = $resolved['participant'];
                     if (str_contains(strtolower($p['name'] ?? ''), $searchLower) ||
-                        str_contains(strtolower($p['register_number'] ?? ''), $searchLower)) {
+                        str_contains(strtolower($p['register_number'] ?? ''), $searchLower) ||
+                        str_contains(strtolower($p['college_name'] ?? ''), $searchLower)) {
                         $match = true;
                     }
                 } else {
                     foreach ($resolved['members'] as $m) {
                         if (str_contains(strtolower($m['name'] ?? ''), $searchLower) ||
-                            str_contains(strtolower($m['register_number'] ?? ''), $searchLower)) {
+                            str_contains(strtolower($m['register_number'] ?? ''), $searchLower) ||
+                            str_contains(strtolower($m['college_name'] ?? ''), $searchLower)) {
                             $match = true;
                             break;
                         }
@@ -164,6 +167,8 @@ class RegistrationCoordinatorController extends BaseController
         $deptModel = new \App\Models\DepartmentModel();
         $departments = array_filter($deptModel->getAll(), fn($d) => $d['is_active']);
         $academicYears = $this->appModel->getDistinctAcademicYearsForEvent($eventId);
+        $collegeModel = new \App\Models\CollegeModel();
+        $colleges = $collegeModel->getAllActive(false);
 
         $this->render('coordinator.registrations.event_participants', [
             'pageTitle'            => 'Participants: ' . $event['event_name'],
@@ -175,6 +180,7 @@ class RegistrationCoordinatorController extends BaseController
             'filters'              => $filters,
             'search'               => $search,
             'departments'          => $departments,
+            'colleges'             => $colleges,
             'academicYears'        => $academicYears
         ], 'dashboard');
     }
@@ -189,6 +195,7 @@ class RegistrationCoordinatorController extends BaseController
         $filters = [
             'application_status' => $_GET['status'] ?? 'All',
             'department_id'      => $_GET['department_id'] ?? '',
+            'college_id'         => $_GET['college_id'] ?? '',
             'academic_year'      => $_GET['academic_year'] ?? '',
             'application_type'   => $_GET['application_type'] ?? 'All'
         ];
@@ -209,6 +216,12 @@ class RegistrationCoordinatorController extends BaseController
             $deptModel = new \App\Models\DepartmentModel();
             $dept = $deptModel->findById((int)$filters['department_id']);
             $filters['department_name'] = $dept['department_name'] ?? 'Unknown';
+        }
+
+        if (!empty($filters['college_id']) && $filters['college_id'] !== 'All') {
+            $collegeModel = new \App\Models\CollegeModel();
+            $col = $collegeModel->findById((int)$filters['college_id']);
+            $filters['college_name'] = $col['college_name'] ?? 'Unknown';
         }
 
         $reportService = new \App\Services\ReportService();

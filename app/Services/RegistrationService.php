@@ -6,7 +6,9 @@ namespace App\Services;
 use App\Database\Database;
 use App\Models\ApplicationModel;
 use App\Models\AuditLogModel;
+use App\Models\EventFeeModel;
 use App\Models\NotificationModel;
+use App\Models\PaymentTransactionModel;
 use App\Models\StudentModel;
 use App\Models\SymposiumDepartmentModel;
 use App\Models\SymposiumEventModel;
@@ -21,39 +23,19 @@ use Throwable;
  */
 class RegistrationService
 {
-    /** @var ApplicationModel */
     private ApplicationModel $appModel;
-    
-    /** @var TeamModel */
     private TeamModel $teamModel;
-    
-    /** @var TeamMemberModel */
     private TeamMemberModel $memberModel;
-    
-    /** @var SymposiumEventModel */
     private SymposiumEventModel $eventModel;
-    
-    /** @var SymposiumModel */
     private SymposiumModel $sympModel;
-    
-    /** @var StudentModel */
     private StudentModel $studentModel;
-    
-    /** @var NotificationModel */
     private NotificationModel $notifModel;
-    
-    /** @var AuditLogModel */
     private AuditLogModel $auditModel;
-    
-    /** @var SymposiumDepartmentModel */
     private SymposiumDepartmentModel $deptModel;
-    
-    /** @var PDO */
+    private EventFeeModel $feeModel;
+    private PaymentTransactionModel $paymentModel;
     private PDO $db;
 
-    /**
-     * Constructor initializes models and database connection.
-     */
     public function __construct()
     {
         $this->db           = Database::getConnection();
@@ -66,14 +48,10 @@ class RegistrationService
         $this->notifModel   = new NotificationModel();
         $this->auditModel   = new AuditLogModel();
         $this->deptModel    = new SymposiumDepartmentModel();
+        $this->feeModel     = new EventFeeModel();
+        $this->paymentModel = new PaymentTransactionModel();
     }
 
-    /**
-     * Helper method to return error response.
-     *
-     * @param string $message
-     * @return array
-     */
     private function error(string $message): array
     {
         return ['success' => false, 'message' => $message];
@@ -124,8 +102,15 @@ class RegistrationService
                 return $this->error('Registration is not currently open for this event.');
             }
 
-            // Gate 5 — Intra-Department Eligibility
-            if ($symposium['symposium_type'] === 'Intra Department') {
+            // Gate 5 — Symposium Type Eligibility
+            $sympType = $symposium['symposium_type'] ?? 'Intra Department';
+            $isExternal = ($student['student_type'] ?? 'Internal') === 'External';
+
+            if ($sympType === 'Intra Department') {
+                if ($isExternal) {
+                    return $this->error('This is an Intra-Department event. Only students from organizing departments of this college may register.');
+                }
+
                 $isOrganizer = $this->deptModel->isDepartmentOrganizer(
                     (int)$symposium['symposium_id'],
                     (int)$student['department_id']
@@ -148,6 +133,18 @@ class RegistrationService
                 if (!$isOrganizer) {
                     return $this->error('This is an Intra-Department event. Only students from organizing departments may register.');
                 }
+
+            } elseif ($sympType === 'Inter Department') {
+                if ($isExternal) {
+                    return $this->error('This is an Inter-Department event restricted to internal college students.');
+                }
+                // All internal departments eligible by default
+
+            } elseif ($sympType === 'Inter College') {
+                // Open to External and Internal students
+                if ($isExternal && ($student['affiliation_status'] ?? 'Verified') === 'Rejected') {
+                    return $this->error('Your college affiliation has been rejected. Please update your profile or contact support.');
+                }
             }
 
             // Gate 6 — Duplicate Check
@@ -165,47 +162,77 @@ class RegistrationService
                 }
             }
 
-            // Gate 8 — Capacity Check
-            $maxParticipants = (int)$event['max_participants'];
+            // Execution — Start Transaction & Enforce Capacity with Row Lock (Race Condition Elimination)
+            $this->db->beginTransaction();
+
+            // Lock the target symposium_events row to serialize concurrent capacity evaluations
+            $lockStmt = $this->db->prepare("
+                SELECT symposium_event_id, max_participants, status, is_locked 
+                FROM symposium_events 
+                WHERE symposium_event_id = :id 
+                FOR UPDATE
+            ");
+            $lockStmt->execute(['id' => $symposiumEventId]);
+            $lockedEvent = $lockStmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$lockedEvent) {
+                $this->db->rollBack();
+                return $this->error('Scheduled event not found.');
+            }
+
+            if (!in_array($lockedEvent['status'], ['Published', 'Registration Open'], true) || (int)($lockedEvent['is_locked'] ?? 0) === 1) {
+                $this->db->rollBack();
+                return $this->error('Registration is not currently open for this event.');
+            }
+
+            // Gate 8 — Capacity Check (Serialized under exclusive row lock)
+            $maxParticipants = (int)($lockedEvent['max_participants'] ?? 0);
             if ($maxParticipants > 0) {
                 $activeCount = $this->appModel->countActiveBySymposiumEvent($symposiumEventId);
                 if ($activeCount >= $maxParticipants) {
+                    $this->db->rollBack();
                     return $this->error('This event has reached its registration limit.');
                 }
             }
 
-            // Execution — Transaction
-            $this->db->beginTransaction();
-
             $appType = ($event['participation_type'] === 'Team' || ($event['participation_type'] === 'Both' && isset($data['application_type']) && $data['application_type'] === 'Team')) 
                        ? 'Team' : 'Individual';
+
+            // Check if fee is required
+            $feeCalc = $this->feeModel->calculateFee($symposiumEventId, $appType, 1);
+            $isPaidEvent = $feeCalc['is_fee_required'] && $feeCalc['amount'] > 0;
+
+            $appStatus      = $isPaidEvent ? 'Pending' : 'Approved';
+            $approvalStatus = $isPaidEvent ? 'Pending' : 'Approved';
+            $paymentStatus  = $isPaidEvent ? 'Pending' : 'Not Required';
 
             $appData = [
                 'competition_id'       => null,
                 'symposium_event_id'   => $symposiumEventId,
                 'student_id'           => $studentId,
                 'application_type'     => $appType,
-                'application_status'   => 'Approved', // AUTO-APPROVE
-                'approval_status'      => 'Approved', // AUTO-APPROVE
-                'approved_at'          => date('Y-m-d H:i:s'),
+                'application_status'   => $appStatus,
+                'approval_status'      => $approvalStatus,
+                'payment_status'       => $paymentStatus,
+                'approved_at'          => $isPaidEvent ? null : date('Y-m-d H:i:s'),
                 'approved_by'          => null,
                 'remarks'              => ''
             ];
 
-            // Insert application — auto-approve status set in appData
+            // Insert application
             $appId = $this->appModel->insert($appData);
             if (!$appId) {
                 $this->db->rollBack();
                 return $this->error('Failed to create application.');
             }
 
-            // Generate permanent formatted application number (race-safe inside transaction)
+            // Generate permanent formatted application number
             $appNo = $this->appModel->setApplicationNo($appId);
 
             if ($appType === 'Team') {
                 $teamData = [
                     'application_id'     => $appId,
-                    'creator_student_id' => $studentId // Creator stored here for FK; not displayed as Leader
+                    'creator_student_id' => $studentId
                 ];
                 $teamId = $this->teamModel->create($teamData);
                 if (!$teamId) {
@@ -217,10 +244,46 @@ class RegistrationService
                 $this->memberModel->add($teamId, $studentId);
             }
 
+            // If event is paid, create initial pending payment transaction
+            $paymentRef = null;
+            if ($isPaidEvent) {
+                $paymentRef = $this->paymentModel->generateReference();
+                $this->paymentModel->create([
+                    'payment_reference' => $paymentRef,
+                    'application_id'    => $appId,
+                    'symposium_event_id'=> $symposiumEventId,
+                    'student_id'        => $studentId,
+                    'amount'            => $feeCalc['amount'],
+                    'currency'          => $feeCalc['currency'],
+                    'gateway_provider'  => 'mock',
+                    'gateway_order_id'  => 'order_' . strtolower(str_replace('-', '_', $paymentRef)),
+                    'payment_status'    => 'Pending',
+                    'idempotency_key'   => $paymentRef
+                ]);
+            }
+
             $this->db->commit();
 
-            // After commit
-            // Audit logs require a valid staff user_id, so we skip audit logging for student-initiated registrations.
+            if ($isPaidEvent) {
+                $this->notifModel->createForStudent(
+                    $studentId,
+                    'Payment Pending',
+                    "Your application {$appNo} for {$event['event_name']} is submitted. Please complete payment of {$feeCalc['currency']} {$feeCalc['amount']} to confirm your registration."
+                );
+
+                return [
+                    'success'           => true,
+                    'requires_payment'  => true,
+                    'payment_required'  => true,
+                    'team_id'           => $teamId ?? null,
+                    'payment_reference' => $paymentRef,
+                    'application_id'    => $appId,
+                    'application_no'    => $appNo,
+                    'amount'            => $feeCalc['amount'],
+                    'currency'          => $feeCalc['currency'],
+                    'message'           => 'Application submitted! Please complete the fee payment to confirm registration.'
+                ];
+            }
 
             $this->notifModel->createForStudent(
                 $studentId,
@@ -229,14 +292,22 @@ class RegistrationService
             );
 
             return [
-                'success' => true,
-                'message' => 'Successfully registered for the event.',
-                'application_no' => $appNo
+                'success'          => true,
+                'requires_payment' => false,
+                'payment_required' => false,
+                'team_id'          => $teamId ?? null,
+                'message'          => 'Successfully registered for the event.',
+                'application_id'   => $appId,
+                'application_no'   => $appNo
             ];
 
         } catch (Throwable $e) {
             if ($this->db->inTransaction()) {
                 $this->db->rollBack();
+            }
+            // Friendly error for duplicate submissions / constraint violation
+            if ($e instanceof \PDOException && ($e->getCode() === '23000' || ($e->errorInfo[1] ?? 0) === 1062)) {
+                return $this->error('You are already registered for this event or an active application already exists.');
             }
             error_log('Registration error: ' . $e->getMessage());
             return $this->error('An unexpected error occurred during registration.');
@@ -245,13 +316,14 @@ class RegistrationService
 
     /**
      * Adds a member to a team.
+     * Enforces same-college membership for inter-college competitions via canonical college_id.
      *
      * @param int $teamId
-     * @param string $registerNumber
+     * @param string $identifier Register number or Email
      * @param int $creatorStudentId
      * @return array
      */
-    public function addTeamMember(int $teamId, string $registerNumber, int $creatorStudentId): array
+    public function addTeamMember(int $teamId, string $identifier, int $creatorStudentId): array
     {
         try {
             $team = $this->teamModel->findById($teamId);
@@ -294,14 +366,31 @@ class RegistrationService
                 return $this->error("Team has reached the maximum size of {$maxTeamSize} members.");
             }
 
-            $targetStudent = $this->studentModel->findByRegisterNumber($registerNumber);
+            // Lookup target student by register number or email
+            $creatorStudent = $this->studentModel->findById($creatorStudentId);
+            $targetStudent = $this->studentModel->findByEmailOrRegisterNumber(
+                $identifier, 
+                isset($creatorStudent['college_id']) ? (int)$creatorStudent['college_id'] : null
+            );
+
             if (!$targetStudent) {
-                return $this->error('Student with this register number not found.');
+                return $this->error('Student with this register number/email not found.');
             }
 
             $targetId = (int)$targetStudent['student_id'];
             if ($targetStudent['account_status'] !== 'Active') {
                 return $this->error('Target student account is not active.');
+            }
+
+            // Check Institution match for Inter-College competitions
+            $symposium = $this->sympModel->findById((int)$event['symposium_id']);
+            if ($symposium && ($symposium['symposium_type'] ?? '') === 'Inter College') {
+                $creatorCollegeId = (int)($creatorStudent['college_id'] ?? 0);
+                $targetCollegeId  = (int)($targetStudent['college_id'] ?? 0);
+                if ($creatorCollegeId !== $targetCollegeId) {
+                    $colName = $creatorStudent['college_name'] ?? 'your institution';
+                    return $this->error("All team members must belong to the same institution ({$colName}).");
+                }
             }
 
             if ($this->memberModel->isStudentInTeam($teamId, $targetId)) {
@@ -334,11 +423,6 @@ class RegistrationService
 
     /**
      * Removes a member from a team.
-     *
-     * @param int $teamId
-     * @param int $memberStudentId
-     * @param int $creatorStudentId
-     * @return array
      */
     public function removeTeamMember(int $teamId, int $memberStudentId, int $creatorStudentId): array
     {
@@ -382,14 +466,8 @@ class RegistrationService
 
             $this->memberModel->remove($teamId, $memberStudentId);
 
-            $this->notifModel->createForStudent(
-                $memberStudentId,
-                'Removed from Team',
-                "You have been removed from Team-{$team['team_id']}."
-            );
+            return ['success' => true, 'message' => 'Member removed successfully.'];
 
-            return ['success' => true, 'message' => 'Team member removed successfully.'];
-            
         } catch (Throwable $e) {
             error_log('Remove team member error: ' . $e->getMessage());
             return $this->error('An unexpected error occurred while removing member.');
@@ -397,11 +475,7 @@ class RegistrationService
     }
 
     /**
-     * Withdraws a student's registration.
-     *
-     * @param int $studentId
-     * @param int $applicationId
-     * @return array
+     * Withdraws a registration.
      */
     public function withdraw(int $studentId, int $applicationId): array
     {
@@ -415,76 +489,41 @@ class RegistrationService
                 return $this->error('You are not authorized to withdraw this application.');
             }
 
+            $terminalStatuses = ['Withdrawn', 'Cancelled', 'Rejected'];
+            if (in_array($app['application_status'], $terminalStatuses, true)) {
+                return $this->error('This application is already ' . $app['application_status'] . '.');
+            }
+
             $now = date('Y-m-d H:i:s');
             if (!empty($app['registration_end']) && $now > $app['registration_end']) {
-                return $this->error('Withdrawal is not allowed because the registration window is closed.');
+                return $this->error('Cannot withdraw application. Registration window is closed.');
             }
 
-            $terminalStatuses = ['Withdrawn', 'Cancelled', 'Rejected'];
-            if (in_array($app['application_status'], $terminalStatuses, true)) {
-                return $this->error('Application is already ' . $app['application_status'] . '.');
+            $this->db->beginTransaction();
+
+            $updated = $this->appModel->updateStatus($applicationId, 'Withdrawn', 'Withdrawn by student');
+            if (!$updated) {
+                $this->db->rollBack();
+                return $this->error('Failed to withdraw application.');
             }
 
-            $this->appModel->updateStatus($applicationId, 'Withdrawn', null, 'Withdrawn by student');
-            
-            // Audit logs require a valid staff user_id, so we skip audit logging for student-initiated withdrawals.
+            if ($app['application_type'] === 'Team') {
+                $team = $this->teamModel->findByApplication($applicationId);
+                if ($team) {
+                    $this->memberModel->removeAll((int)$team['team_id']);
+                }
+            }
 
-            $this->notifModel->createForStudent(
-                $studentId,
-                'Registration Withdrawn',
-                "You have successfully withdrawn your application #{$app['application_no']}."
-            );
+            $this->db->commit();
 
-            return ['success' => true, 'message' => 'Registration withdrawn successfully.'];
-            
+            return ['success' => true, 'message' => 'Application withdrawn successfully.'];
+
         } catch (Throwable $e) {
-            error_log('Withdraw error: ' . $e->getMessage());
-            return $this->error('An unexpected error occurred while withdrawing.');
-        }
-    }
-
-    /**
-     * Staff cancellation of an application.
-     *
-     * @param int $applicationId
-     * @param int $staffUserId
-     * @param string $remarks
-     * @return array
-     */
-    public function cancel(int $applicationId, int $staffUserId, string $remarks = ''): array
-    {
-        try {
-            $app = $this->appModel->findById($applicationId);
-            if (!$app) {
-                return $this->error('Application not found.');
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
             }
-
-            $terminalStatuses = ['Withdrawn', 'Cancelled', 'Rejected'];
-            if (in_array($app['application_status'], $terminalStatuses, true)) {
-                return $this->error('Application is already ' . $app['application_status'] . '.');
-            }
-
-            $this->appModel->updateStatus($applicationId, 'Cancelled', $staffUserId, $remarks);
-            
-            $this->auditModel->log(
-                'Event Registrations',
-                $applicationId,
-                'STAFF_CANCEL_EVENT_REGISTRATION',
-                $staffUserId,
-                "Staff cancelled application #{$app['application_no']}. Remarks: $remarks"
-            );
-
-            $this->notifModel->createForStudent(
-                (int)$app['student_id'],
-                'Registration Cancelled',
-                "Your application #{$app['application_no']} has been cancelled. Remarks: $remarks"
-            );
-
-            return ['success' => true, 'message' => 'Application cancelled successfully.'];
-            
-        } catch (Throwable $e) {
-            error_log('Cancel error: ' . $e->getMessage());
-            return $this->error('An unexpected error occurred while cancelling application.');
+            error_log('Withdraw application error: ' . $e->getMessage());
+            return $this->error('An unexpected error occurred while withdrawing application.');
         }
     }
 }

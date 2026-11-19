@@ -327,7 +327,7 @@ $isLocked      = in_array($currentStatus, [
     }
 
     function vType(v) {
-        var allowed = ['Intra Department', 'Inter Department'];
+        var allowed = ['Intra Department', 'Inter Department', 'Inter College'];
         if (!v || allowed.indexOf(v) === -1) return 'Please select a valid symposium type.';
         return '';
     }

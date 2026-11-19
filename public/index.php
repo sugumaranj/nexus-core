@@ -52,8 +52,15 @@ use App\Controllers\ChatbotController;
 use App\Controllers\ScheduleImageController;
 use App\Controllers\ResultViewerController;
 use App\Controllers\CertificateController;
+use App\Controllers\CertificateTemplateController;
+use App\Controllers\CertificateGenerationController;
+use App\Controllers\CertificateDownloadController;
 use App\Controllers\CertificateVerificationController;
 use App\Controllers\StudentCertificateController;
+use App\Controllers\PaymentController;
+use App\Controllers\PrelimsFicController;
+use App\Controllers\StudentPrelimsQuizController;
+use App\Controllers\PrelimsReportController;
 
 use App\Core\Application;
 use App\Core\Bootstrap;
@@ -786,66 +793,71 @@ $router->get(
 */
 
 // Template Library
-$router->get('/certificates', [CertificateController::class, 'index']);
+$router->get('/certificates', [CertificateTemplateController::class, 'index']);
 
 // Template Upload
-$router->get('/certificates/create',  [CertificateController::class, 'create']);
-$router->post('/certificates/store',  [CertificateController::class, 'store']);
+$router->get('/certificates/create',  [CertificateTemplateController::class, 'create']);
+$router->post('/certificates/store',  [CertificateTemplateController::class, 'store']);
 
 // Certificate Designer
-$router->get('/certificates/designer',              [CertificateController::class, 'designer']);
-$router->post('/certificates/designer/save',        [CertificateController::class, 'saveDesign']);
-$router->post('/certificates/designer/preview',     [CertificateController::class, 'designerPreview']);
+$router->get('/certificates/designer',              [CertificateTemplateController::class, 'designer']);
+$router->post('/certificates/designer/save',        [CertificateTemplateController::class, 'saveDesign']);
+$router->post('/certificates/designer/preview',     [CertificateTemplateController::class, 'designerPreview']);
 
 // Preview
-$router->get('/certificates/preview',     [CertificateController::class, 'preview']);
-$router->get('/certificates/preview/pdf', [CertificateController::class, 'previewPdf']);
+$router->get('/certificates/preview',     [CertificateTemplateController::class, 'preview']);
+$router->get('/certificates/preview/pdf', [CertificateTemplateController::class, 'previewPdf']);
 
 // Generation
-$router->get('/certificates/generate',  [CertificateController::class, 'generate']);
-$router->post('/certificates/generate', [CertificateController::class, 'runGeneration']);
+$router->get('/certificates/generate',  [CertificateGenerationController::class, 'generate']);
+$router->post('/certificates/generate', [CertificateGenerationController::class, 'runGeneration']);
 
-$router->get('/certificates/symposium-batch',  [CertificateController::class, 'symposiumBatch']);
-$router->post('/certificates/symposium-batch', [CertificateController::class, 'runSymposiumBatch']);
+// Background Document Queue (Async Generation & Polling)
+$router->post('/certificates/generate-async', [CertificateGenerationController::class, 'queueGeneration']);
+$router->get('/certificates/job-status',       [CertificateGenerationController::class, 'jobStatus']);
+$router->get('/certificates/job-progress',     [CertificateGenerationController::class, 'jobProgress']);
 
-$router->get('/certificates/report',    [CertificateController::class, 'generationReport']);
+$router->get('/certificates/symposium-batch',  [CertificateGenerationController::class, 'symposiumBatch']);
+$router->post('/certificates/symposium-batch', [CertificateGenerationController::class, 'runSymposiumBatch']);
+
+$router->get('/certificates/report',    [CertificateGenerationController::class, 'generationReport']);
 
 // Generated Certificates List
-$router->get('/certificates/generated',      [CertificateController::class, 'generated']);
+$router->get('/certificates/generated',      [CertificateGenerationController::class, 'generated']);
 
 // Download
-$router->get('/certificates/download',     [CertificateController::class, 'download']);
-$router->get('/certificates/view',         [CertificateController::class, 'view']);
-$router->get('/certificates/download/zip', [CertificateController::class, 'downloadZip']);
-$router->get('/certificates/download/event-zip', [CertificateController::class, 'downloadEventZip']);
-$router->get('/certificates/download/symposium-package', [CertificateController::class, 'downloadSymposiumPackage']);
-$router->get('/certificates/download/symposium-pdf', [CertificateController::class, 'downloadSymposiumPdf']);
+$router->get('/certificates/download',     [CertificateDownloadController::class, 'download']);
+$router->get('/certificates/view',         [CertificateDownloadController::class, 'view']);
+$router->get('/certificates/download/zip', [CertificateDownloadController::class, 'downloadZip']);
+$router->get('/certificates/download/event-zip', [CertificateDownloadController::class, 'downloadEventZip']);
+$router->get('/certificates/download/symposium-package', [CertificateDownloadController::class, 'downloadSymposiumPackage']);
+$router->get('/certificates/download/symposium-pdf', [CertificateDownloadController::class, 'downloadSymposiumPdf']);
 
 // Template Actions
-$router->post('/certificates/template/activate',   [CertificateController::class, 'activateTemplate']);
-$router->post('/certificates/template/deactivate', [CertificateController::class, 'deactivateTemplate']);
-$router->post('/certificates/template/duplicate',  [CertificateController::class, 'duplicateTemplate']);
-$router->post('/certificates/template/archive',    [CertificateController::class, 'archiveTemplate']);
-$router->post('/certificates/template/unarchive',  [CertificateController::class, 'unarchiveTemplate']);
-$router->post('/certificates/template/delete',     [CertificateController::class, 'deleteTemplate']);
-$router->get('/certificates/template/edit',        [CertificateController::class, 'editTemplate']);
-$router->post('/certificates/template/edit',       [CertificateController::class, 'updateTemplate']);
+$router->post('/certificates/template/activate',   [CertificateTemplateController::class, 'activateTemplate']);
+$router->post('/certificates/template/deactivate', [CertificateTemplateController::class, 'deactivateTemplate']);
+$router->post('/certificates/template/duplicate',  [CertificateTemplateController::class, 'duplicateTemplate']);
+$router->post('/certificates/template/archive',    [CertificateTemplateController::class, 'archiveTemplate']);
+$router->post('/certificates/template/unarchive',  [CertificateTemplateController::class, 'unarchiveTemplate']);
+$router->post('/certificates/template/delete',     [CertificateTemplateController::class, 'deleteTemplate']);
+$router->get('/certificates/template/edit',        [CertificateTemplateController::class, 'editTemplate']);
+$router->post('/certificates/template/edit',       [CertificateTemplateController::class, 'updateTemplate']);
 
 // AJAX Endpoints
-$router->get('/certificates/ajax/events',    [CertificateController::class, 'ajaxGetEvents']);
-$router->get('/certificates/ajax/results',   [CertificateController::class, 'ajaxGetResults']);
-$router->get('/certificates/ajax/preflight', [CertificateController::class, 'ajaxPreflight']);
+$router->get('/certificates/ajax/events',    [CertificateGenerationController::class, 'ajaxGetEvents']);
+$router->get('/certificates/ajax/results',   [CertificateGenerationController::class, 'ajaxGetResults']);
+$router->get('/certificates/ajax/preflight', [CertificateGenerationController::class, 'ajaxPreflight']);
 
 // Public Certificate Verification (no authentication required)
 // URL format: /certificates/verify?token=<64-char hex>
 $router->get('/certificates/verify', [CertificateVerificationController::class, 'verify']);
 
 // Staff — Type-specific ZIP downloads (Admin or Staff Coordinator — own symposium)
-$router->get('/certificates/download/winners-zip',      [CertificateController::class, 'downloadWinnersZip']);
-$router->get('/certificates/download/participants-zip', [CertificateController::class, 'downloadParticipantsZip']);
+$router->get('/certificates/download/winners-zip',      [CertificateDownloadController::class, 'downloadWinnersZip']);
+$router->get('/certificates/download/participants-zip', [CertificateDownloadController::class, 'downloadParticipantsZip']);
 
 // Event template assignment (Admin or Staff Coordinator — own symposium)
-$router->post('/certificates/template/set-event', [CertificateController::class, 'setEventTemplate']);
+$router->post('/certificates/template/set-event', [CertificateTemplateController::class, 'setEventTemplate']);
 
 // Student Certificate Portal (authenticated students only)
 $router->get('/student/certificates',          [StudentCertificateController::class, 'index']);
@@ -905,6 +917,24 @@ $router->post(
     [StudentAuthController::class, 'login']
 );
 
+// External Student Registration Page
+$router->get(
+    '/student/register',
+    [StudentAuthController::class, 'showRegister']
+);
+
+// External Student Registration Submission
+$router->post(
+    '/student/register',
+    [StudentAuthController::class, 'register']
+);
+
+// College Search API
+$router->get(
+    '/api/colleges/search',
+    [StudentAuthController::class, 'ajaxSearchColleges']
+);
+
 // Student Logout
 $router->get(
     '/student/logout',
@@ -953,6 +983,24 @@ $router->get(
 $router->post(
     '/student/events/register',
     [StudentRegistrationController::class, 'register']
+);
+
+// Student Payment Checkout
+$router->get(
+    '/student/payment/checkout',
+    [PaymentController::class, 'showCheckout']
+);
+
+// Student Payment Process
+$router->post(
+    '/student/payment/process',
+    [PaymentController::class, 'processPayment']
+);
+
+// Payment Webhook
+$router->post(
+    '/api/payment/webhook',
+    [PaymentController::class, 'webhook']
 );
 
 // My Registrations (History)
@@ -1139,6 +1187,50 @@ $router->post('/my/assigned-events/remove-judge', [FacultyInChargeController::cl
 $router->post('/my/assigned-events/prelims', [FacultyInChargeController::class, 'savePrelims']);
 $router->post('/my/assigned-events/publish-results', [FacultyInChargeController::class, 'publishResults']);
 // Tie Resolution is now automatic
+
+/*
+|--------------------------------------------------------------------------
+| Prelims Quiz & Dual-Round Examination Routes (FIC / Staff / Reports)
+|--------------------------------------------------------------------------
+*/
+$router->get('/fic/prelims/manage',              [PrelimsFicController::class, 'manage']);
+$router->post('/fic/prelims/save-config',        [PrelimsFicController::class, 'saveConfig']);
+$router->post('/fic/prelims/upload-pdf',         [PrelimsFicController::class, 'uploadPdf']);
+$router->get('/fic/prelims/source-pdf',          [PrelimsFicController::class, 'streamSourcePdf']);
+$router->post('/fic/prelims/submit-ocr-text',    [PrelimsFicController::class, 'submitOcrText']);
+$router->post('/fic/prelims/upload-answer-key',  [PrelimsFicController::class, 'uploadAnswerKey']);
+$router->post('/fic/prelims/source/delete',      [PrelimsFicController::class, 'deleteSource']);
+$router->get('/fic/prelims/review',              [PrelimsFicController::class, 'review']);
+$router->post('/fic/prelims/question/save',      [PrelimsFicController::class, 'saveQuestion']);
+$router->post('/fic/prelims/question/delete',    [PrelimsFicController::class, 'deleteQuestion']);
+$router->post('/fic/prelims/source/approve',     [PrelimsFicController::class, 'approveSource']);
+$router->post('/fic/prelims/status',             [PrelimsFicController::class, 'changeStatus']);
+$router->get('/fic/prelims/monitor',             [PrelimsFicController::class, 'monitor']);
+$router->get('/fic/prelims/monitor-data',        [PrelimsFicController::class, 'monitorData']);
+$router->post('/fic/prelims/force-submit',       [PrelimsFicController::class, 'forceSubmit']);
+$router->post('/fic/prelims/grant-reentry',      [PrelimsFicController::class, 'grantReentry']);
+$router->post('/fic/prelims/reopen-attempt',     [PrelimsFicController::class, 'reopenAttempt']);
+$router->post('/fic/prelims/reset-attempt',      [PrelimsFicController::class, 'resetAttempt']);
+$router->get('/fic/prelims/results',             [PrelimsFicController::class, 'results']);
+$router->post('/fic/prelims/finalize-selection', [PrelimsFicController::class, 'finalizeSelection']);
+$router->post('/fic/prelims/dispose',            [PrelimsFicController::class, 'dispose']);
+
+// Student Prelims Quiz Portal & Ultra-Low-Bandwidth Exam Runner
+$router->get('/student/prelims',                 [StudentPrelimsQuizController::class, 'index']);
+$router->get('/student/prelims/lobby',           [StudentPrelimsQuizController::class, 'lobby']);
+$router->post('/student/prelims/start',          [StudentPrelimsQuizController::class, 'start']);
+$router->get('/student/prelims/exam',            [StudentPrelimsQuizController::class, 'exam']);
+$router->post('/student/prelims/sync',           [StudentPrelimsQuizController::class, 'sync']);
+$router->post('/student/prelims/submit',         [StudentPrelimsQuizController::class, 'submit']);
+$router->post('/student/prelims/reenter',        [StudentPrelimsQuizController::class, 'reenter']);
+$router->get('/student/prelims/submitted',       [StudentPrelimsQuizController::class, 'submitted']);
+
+// Prelims & Main Event Official Reports
+$router->get('/reports/prelims',                 [PrelimsReportController::class, 'prelims']);
+$router->get('/reports/prelims/pdf',             [PrelimsReportController::class, 'prelimsPdf']);
+$router->get('/reports/prelims/csv',             [PrelimsReportController::class, 'prelimsCsv']);
+$router->get('/reports/main-event',              [PrelimsReportController::class, 'mainEvent']);
+$router->get('/reports/main-event/pdf',          [PrelimsReportController::class, 'mainEventPdf']);
 
 /*
 |--------------------------------------------------------------------------

@@ -18,6 +18,79 @@
     </div>
     <?php endif; ?>
 
+    <!-- ── Recent Background Generation Jobs ─────────────────────────── -->
+    <?php if (!empty($recent_jobs)): ?>
+    <div class="card shadow-sm mb-4 border-info">
+        <div class="card-header py-2 bg-light d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold text-dark">
+                <i class="bi bi-clock-history text-info me-2"></i> Recent Background Generation Jobs
+            </h6>
+            <span class="badge bg-secondary"><?= count($recent_jobs) ?> Recent</span>
+        </div>
+        <div class="card-body p-0 table-responsive">
+            <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Job ID</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Progress</th>
+                        <th>Submitted At</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($recent_jobs as $rj): ?>
+                    <tr>
+                        <td><span class="font-monospace fw-bold">#<?= (int)$rj['job_id'] ?></span></td>
+                        <td>
+                            <div class="fw-semibold"><?= htmlspecialchars($rj['event_name'] ?? $rj['symposium_title'] ?? 'Symposium Event', ENT_QUOTES, 'UTF-8') ?></div>
+                            <small class="text-muted"><?= htmlspecialchars($rj['job_type']) ?></small>
+                        </td>
+                        <td>
+                            <?php if ($rj['status'] === 'Completed'): ?>
+                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Completed</span>
+                            <?php elseif ($rj['status'] === 'Processing'): ?>
+                                <span class="badge bg-primary"><span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Processing</span>
+                            <?php elseif ($rj['status'] === 'Failed'): ?>
+                                <span class="badge bg-danger"><i class="bi bi-exclamation-circle me-1"></i>Failed</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning text-dark"><i class="bi bi-hourglass-split me-1"></i>Pending</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="small fw-semibold"><?= (int)$rj['processed_items'] ?> / <?= (int)$rj['total_items'] ?></span>
+                                <?php $pct = $rj['total_items'] > 0 ? min(100, round(($rj['processed_items'] / $rj['total_items']) * 100)) : ($rj['status'] === 'Completed' ? 100 : 0); ?>
+                                <div class="progress flex-grow-1" style="height: 6px; width: 60px;">
+                                    <div class="progress-bar <?= $rj['status'] === 'Completed' ? 'bg-success' : 'bg-primary' ?>" style="width: <?= $pct ?>%;"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="small text-muted"><?= htmlspecialchars((string)$rj['created_at']) ?></td>
+                        <td class="text-end text-nowrap">
+                            <a href="<?= base_url('/certificates/job-progress?job_id=' . (int)$rj['job_id']) ?>" class="btn btn-xs btn-outline-secondary btn-sm py-0 px-2" title="Track Live Status">
+                                <i class="bi bi-activity"></i> Status
+                            </a>
+                            <?php if ($rj['status'] === 'Completed'): ?>
+                                <a href="<?= base_url('/certificates/report?job_id=' . (int)$rj['job_id']) ?>" class="btn btn-xs btn-outline-primary btn-sm py-0 px-2">
+                                    <i class="bi bi-file-earmark-text"></i> Report
+                                </a>
+                                <?php if (!empty($rj['symposium_event_id'])): ?>
+                                    <a href="<?= base_url('/certificates/generated?event_id=' . (int)$rj['symposium_event_id']) ?>" class="btn btn-xs btn-outline-success btn-sm py-0 px-2">
+                                        <i class="bi bi-award"></i> View
+                                    </a>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <?php endif; ?>
+
     <!-- Select Symposium -->
     <div class="card shadow mb-4 border-primary">
         <div class="card-body">

@@ -28,6 +28,8 @@ $csrfToken      = $csrfToken      ?? '';
 $currentJudges  = $currentJudges  ?? [];
 $isFic          = $isFic          ?? false;
 $attendanceLocked = $attendanceLocked ?? false;
+$roundType      = $roundType      ?? 'Main';
+$hasPrelims     = $hasPrelims     ?? false;
 
 $eid         = (int) ($event['symposium_event_id'] ?? 0);
 $sessionOpen = !empty($activeSession) && $activeSession['status'] === 'Open';
@@ -114,6 +116,18 @@ foreach ($currentJudges as $j) {
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap d-print-none">
+        <?php if ($hasPrelims): ?>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Attendance Round">
+                <a href="<?= base_url() ?>/attendance/event?id=<?= $eid ?>&round=prelims"
+                   class="btn <?= $roundType === 'Prelims' ? 'btn-primary fw-semibold' : 'btn-outline-primary' ?>">
+                    <i class="bi bi-journal-check me-1"></i>Prelims Round
+                </a>
+                <a href="<?= base_url() ?>/attendance/event?id=<?= $eid ?>&round=main"
+                   class="btn <?= $roundType === 'Main' ? 'btn-primary fw-semibold' : 'btn-outline-primary' ?>">
+                    <i class="bi bi-trophy me-1"></i>Main Event Round
+                </a>
+            </div>
+        <?php endif; ?>
         <button type="button" class="btn btn-danger btn-sm" onclick="window.print()">
             <i class="bi bi-file-earmark-pdf me-1"></i>Save PDF
         </button>
@@ -175,6 +189,7 @@ foreach ($currentJudges as $j) {
                     <input type="hidden" name="csrf_token"          value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="session_id"          value="0" id="hidden_session_id">
                     <input type="hidden" name="symposium_event_id"  value="<?= $eid ?>">
+                    <input type="hidden" name="round_type"          value="<?= htmlspecialchars($roundType, ENT_QUOTES, 'UTF-8') ?>">
                     <button type="submit" class="btn btn-outline-danger btn-sm">
                         <i class="bi bi-lock me-1"></i>Close Session
                     </button>
@@ -185,6 +200,7 @@ foreach ($currentJudges as $j) {
                     <input type="hidden" name="csrf_token"          value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="session_id"          value="<?= $sessionId ?>">
                     <input type="hidden" name="symposium_event_id"  value="<?= $eid ?>">
+                    <input type="hidden" name="round_type"          value="<?= htmlspecialchars($roundType, ENT_QUOTES, 'UTF-8') ?>">
                     <button type="submit" class="btn btn-outline-danger btn-sm">
                         <i class="bi bi-lock me-1"></i>Close Session
                     </button>
@@ -335,9 +351,14 @@ foreach ($currentJudges as $j) {
                             </div>
                         </td>
 
-                        <!-- Department -->
+                        <!-- Department & College -->
                         <td class="small">
-                            <?= htmlspecialchars($p['department_name'] ?? '', ENT_QUOTES, 'UTF-8') ?>
+                            <div><?= htmlspecialchars($p['department_name'] ?? '', ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php if (!empty($p['college_name'])): ?>
+                                <span class="badge bg-light text-primary border small" title="<?= htmlspecialchars($p['college_name'], ENT_QUOTES, 'UTF-8') ?>">
+                                    <i class="bi bi-building me-1"></i><?= htmlspecialchars($p['college_name'], ENT_QUOTES, 'UTF-8') ?>
+                                </span>
+                            <?php endif; ?>
                         </td>
 
                         <!-- Type -->
@@ -556,6 +577,7 @@ $showJudgeSection = ($isFic || ($user['role'] ?? '') === 'Admin') && !empty($cur
                 <form method="POST" action="<?= base_url() ?>/attendance/open" id="open-session-form">
                     <input type="hidden" name="csrf_token"    value="<?= htmlspecialchars($csrfToken, ENT_QUOTES, 'UTF-8') ?>">
                     <input type="hidden" name="symposium_event_id" value="<?= $eid ?>">
+                    <input type="hidden" name="round_type" value="<?= htmlspecialchars($roundType, ENT_QUOTES, 'UTF-8') ?>">
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Session Notes (Optional)</label>
                         <input type="text" name="notes" class="form-control"

@@ -195,6 +195,7 @@ final class FacultyInChargeController extends BaseController
         $filters = [
             'application_status' => $_GET['status'] ?? 'All',
             'department_id'      => $_GET['department_id'] ?? '',
+            'college_id'         => $_GET['college_id'] ?? '',
             'academic_year'      => $_GET['academic_year'] ?? '',
             'application_type'   => $_GET['application_type'] ?? 'All'
         ];
@@ -232,6 +233,7 @@ final class FacultyInChargeController extends BaseController
             $applications = array_filter($applications, function($app) use ($searchLower) {
                 return str_contains(strtolower($app['student_name']     ?? ''), $searchLower)
                     || str_contains(strtolower($app['register_number']  ?? ''), $searchLower)
+                    || str_contains(strtolower($app['college_name']     ?? ''), $searchLower)
                     || str_contains(strtolower($app['application_no']   ?? ''), $searchLower);
             });
         }
@@ -242,6 +244,9 @@ final class FacultyInChargeController extends BaseController
         $departments = array_filter($deptModel->getAll(), fn($d) => $d['is_active']);
         $academicYears = $appModel->getDistinctAcademicYearsForEvent($eventId);
 
+        $collegeModel = new \App\Models\CollegeModel();
+        $colleges = $collegeModel->getAllActive(false);
+
         $this->render('fic.event_participants', [
             'pageTitle'     => 'Registrations — ' . htmlspecialchars($detail['event']['event_name'] ?? '', ENT_QUOTES),
             'user'          => $user,
@@ -251,6 +256,7 @@ final class FacultyInChargeController extends BaseController
             'filters'       => $filters,
             'search'        => $search,
             'departments'   => $departments,
+            'colleges'      => $colleges,
             'academicYears' => $academicYears
         ]);
     }
@@ -269,6 +275,7 @@ final class FacultyInChargeController extends BaseController
         $filters = [
             'application_status' => $_GET['status'] ?? 'All',
             'department_id'      => $_GET['department_id'] ?? '',
+            'college_id'         => $_GET['college_id'] ?? '',
             'academic_year'      => $_GET['academic_year'] ?? '',
             'application_type'   => $_GET['application_type'] ?? 'All'
         ];
@@ -300,6 +307,12 @@ final class FacultyInChargeController extends BaseController
             $deptModel = new \App\Models\DepartmentModel();
             $dept = $deptModel->findById((int)$filters['department_id']);
             $filters['department_name'] = $dept['department_name'] ?? 'Unknown';
+        }
+
+        if (!empty($filters['college_id']) && $filters['college_id'] !== 'All') {
+            $collegeModel = new \App\Models\CollegeModel();
+            $col = $collegeModel->findById((int)$filters['college_id']);
+            $filters['college_name'] = $col['college_name'] ?? 'Unknown';
         }
 
         $sympModel = new \App\Models\SymposiumModel();

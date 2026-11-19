@@ -125,7 +125,9 @@ final class SymposiumModel extends BaseModel
         ?string $quickFilter = null,
         ?int $scopeCreatedBy = null,
         array $scopeDepartmentIds = [],
-        ?string $filterDepartmentId = null
+        ?string $filterDepartmentId = null,
+        ?int $limit = null,
+        ?int $offset = null
     ): array {
         $sql = '
             SELECT
@@ -233,11 +235,24 @@ final class SymposiumModel extends BaseModel
             $params = [];
         }
 
+        if ($limit !== null) {
+            $sql .= " LIMIT :lim_count OFFSET :lim_offset";
+        }
+
         $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        foreach ($params as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
+        if ($limit !== null) {
+            $stmt->bindValue(':lim_count', (int)$limit, PDO::PARAM_INT);
+            $stmt->bindValue(':lim_offset', (int)($offset ?? 0), PDO::PARAM_INT);
+        }
+        $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+
 
     /**
      * -----------------------------------------------------------------------
@@ -509,7 +524,9 @@ final class SymposiumModel extends BaseModel
         ?string $quickFilter = null,
         ?int $scopeCreatedBy = null,
         array $scopeDepartmentIds = [],
-        ?string $filterDepartmentId = null
+        ?string $filterDepartmentId = null,
+        ?int $limit = null,
+        ?int $offset = null
     ): array {
         return $this->getAll(
             $search, $academicYear, $symposiumType,

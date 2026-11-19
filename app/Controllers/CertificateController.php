@@ -8,1467 +8,236 @@ declare(strict_types=1);
  * -------------------------------------------------------------------------
  * File        : CertificateController.php
  * Location    : app/Controllers/
- * Description : Certificate Generation Module Controller.
+ * Description : Certificate Module Aggregator & Backward-Compatible Facade.
  *
- * Responsibilities
+ * Architecture Note:
  * -------------------------------------------------------------------------
- * • Template management (upload, configure, activate, archive)
- * • Visual designer (save field positions)
- * • Certificate generation (single event / bulk symposium)
- * • Download (single PDF, bulk ZIP)
- * • AJAX endpoints for dynamic form fields
+ * The Certificate module has been modularized into 3 specialized controllers:
+ * 1. CertificateTemplateController   — Templates, Uploads & Visual Designer
+ * 2. CertificateGenerationController — Generation, Reports, Preflight & Queue
+ * 3. CertificateDownloadController   — Single & Bulk ZIP / PDF Streaming
  *
- * Access
- * -------------------------------------------------------------------------
- * • Roles: Admin, Staff Coordinator
- * • All routes protected by AuthMiddleware + RoleMiddleware
- *
- * Project     : NexusCore
+ * This class acts as a high-performance facade delegating incoming calls to
+ * the respective specialized controllers, ensuring 100% backward compatibility
+ * with all existing routes, views, AJAX calls, and external invocations.
  * -------------------------------------------------------------------------
  */
 
 namespace App\Controllers;
 
-use App\Middleware\AuthMiddleware;
-use App\Middleware\RoleMiddleware;
-use App\Models\CertificateTemplateModel;
-use App\Models\GeneratedCertificateModel;
-use App\Services\CertificateTemplateService;
-use App\Services\CertificateBulkService;
-use App\Services\CertificateDownloadService;
-use App\Services\CertificatePackageService;
-use App\Services\CertificateGeneratorService;
-use App\Services\CertificateEligibilityService;
-use App\Services\CertificateRankService;
-use App\Services\CertificateReconciliationService;
-use App\Database\Database;
-use App\Core\Session;
-use PDO;
-
 final class CertificateController extends BaseController
 {
-    private CertificateTemplateModel    $templateModel;
-    private GeneratedCertificateModel   $certModel;
-    private CertificateTemplateService  $templateService;
-    private CertificateBulkService      $bulkService;
-    private CertificateDownloadService  $downloadService;
-    private CertificatePackageService   $packageService;
+    private CertificateTemplateController   $templateCtrl;
+    private CertificateGenerationController $generationCtrl;
+    private CertificateDownloadController   $downloadCtrl;
 
     public function __construct()
     {
-        AuthMiddleware::handle();
-        RoleMiddleware::requireRole('Admin', 'Staff Coordinator');
-
-        $this->templateModel   = new CertificateTemplateModel();
-        $this->certModel       = new GeneratedCertificateModel();
-        $this->templateService = new CertificateTemplateService();
-        $this->bulkService     = new CertificateBulkService();
-        $this->downloadService = new CertificateDownloadService();
-        $this->packageService  = new CertificatePackageService();
+        $this->templateCtrl   = new CertificateTemplateController();
+        $this->generationCtrl = new CertificateGenerationController();
+        $this->downloadCtrl   = new CertificateDownloadController();
     }
 
     // =========================================================================
-    // Template Library
+    // Template Management (Delegates to CertificateTemplateController)
     // =========================================================================
 
-    /**
-     * Template library — list all templates.
-     */
     public function index(): void
     {
-        $templates = $this->templateModel->getAll(false, true);
-
-        $this->render('certificate.index', [
-            'page_title' => 'Certificate Templates',
-            'templates'  => $templates,
-        ]);
+        $this->templateCtrl->index();
     }
 
-    // =========================================================================
-    // Template Upload
-    // =========================================================================
-
-    /**
-     * Show the upload form.
-     */
     public function create(): void
     {
-        $this->render('certificate.create', [
-            'page_title' => 'Upload Certificate Template',
-        ]);
+        $this->templateCtrl->create();
     }
 
-    /**
-     * Process template upload.
-     */
     public function store(): void
     {
-        $this->verifyCsrf();
-
-        $file = $_FILES['pdf_file'] ?? null;
-
-        if (!$file || $file['error'] !== UPLOAD_ERR_OK) {
-            $this->error('No file uploaded or upload error. Please try again.');
-            $this->redirect('/certificates/create');
-        }
-
-        $data = [
-            'template_name'     => trim($_POST['template_name'] ?? ''),
-            'description'       => trim($_POST['description'] ?? ''),
-            'rank_display_mode' => $_POST['rank_display_mode'] ?? 'checkboxes',
-            'team_cert_mode'    => $_POST['team_cert_mode'] ?: null,
-            'certificate_type'  => in_array($_POST['certificate_type'] ?? '', ['Winner', 'Participant'])
-                                   ? $_POST['certificate_type']
-                                   : 'Winner',
-        ];
-
-        if (empty($data['template_name'])) {
-            $this->error('Template name is required.');
-            $this->redirect('/certificates/create');
-        }
-
-        $result = $this->templateService->uploadTemplate($file, $data, $this->user()['user_id']);
-
-        if (!$result['success']) {
-            $this->error($result['message']);
-            $this->redirect('/certificates/create');
-        }
-
-        $this->success('Template uploaded successfully. Now open the Designer to configure field positions.');
-        $this->redirect('/certificates/designer?template_id=' . $result['template_id']);
+        $this->templateCtrl->store();
     }
 
-    // =========================================================================
-    // Certificate Designer
-    // =========================================================================
-
-    /**
-     * Visual designer for placing fields on the template.
-     */
     public function designer(): void
     {
-        $templateId = (int) ($_GET['template_id'] ?? 0);
-
-        if ($templateId <= 0) {
-            $this->error('Invalid template ID.');
-            $this->redirect('/certificates');
-        }
-
-        $template = $this->templateModel->findById($templateId);
-
-        if (!$template || $template['is_archived']) {
-            $this->error('Template not found.');
-            $this->redirect('/certificates');
-        }
-
-        $version    = $this->templateModel->getActiveVersion($templateId);
-        $fieldConfig = [];
-
-        if ($version) {
-            $fieldConfig = json_decode($version['field_config'] ?? '[]', true) ?: [];
-        }
-
-        $this->render('certificate.designer', [
-            'page_title'  => 'Certificate Designer — ' . htmlspecialchars($template['template_name']),
-            'template'    => $template,
-            'version'     => $version,
-            'fieldConfig' => $fieldConfig,
-            'fieldRegistry' => CertificateTemplateService::FIELD_REGISTRY,
-        ]);
+        $this->templateCtrl->designer();
     }
 
-    /**
-     * Save field positions from designer (AJAX POST → JSON response).
-     */
     public function saveDesign(): void
     {
-        header('Content-Type: application/json');
-
-        $input = json_decode(file_get_contents('php://input'), true);
-
-        // CSRF validation for JSON endpoint — same session key as normal POST handlers
-        $token        = $input['_token'] ?? '';
-        $sessionToken = Session::get('_token', '');
-        if (!$sessionToken || !hash_equals($sessionToken, $token)) {
-            http_response_code(403);
-            echo json_encode(['success' => false, 'message' => 'Security token mismatch. Please reload the page and try again.']);
-            return;
-        }
-
-        $templateId = (int) ($input['template_id'] ?? 0);
-        $fields     = $input['fields'] ?? [];
-
-        if ($templateId <= 0) {
-            http_response_code(400);
-            echo json_encode(['success' => false, 'message' => 'Invalid template ID.']);
-            return;
-        }
-
-        $result = $this->templateService->saveDesign($templateId, $fields, $this->user()['user_id']);
-
-        echo json_encode($result);
+        $this->templateCtrl->saveDesign();
     }
 
-    // =========================================================================
-    // Template Actions
-    // =========================================================================
-
-    /**
-     * Edit template metadata (GET → form, POST → update).
-     */
     public function editTemplate(): void
     {
-        $templateId = (int) ($_GET['id'] ?? 0);
-
-        if ($templateId <= 0) {
-            $this->error('Invalid template ID.');
-            $this->redirect('/certificates');
-        }
-
-        $template = $this->templateModel->findById($templateId);
-        if (!$template) {
-            $this->error('Template not found.');
-            $this->redirect('/certificates');
-        }
-
-        $this->render('certificate.edit_template', [
-            'page_title' => 'Edit Template — ' . htmlspecialchars($template['template_name']),
-            'template'   => $template,
-        ]);
+        $this->templateCtrl->editTemplate();
     }
 
-    /**
-     * Process template metadata update.
-     */
     public function updateTemplate(): void
     {
-        $this->verifyCsrf();
-
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-        if ($templateId <= 0) {
-            $this->error('Invalid template ID.');
-            $this->redirect('/certificates');
-        }
-
-        $data = [
-            'template_name'     => trim($_POST['template_name'] ?? ''),
-            'description'       => trim($_POST['description'] ?? ''),
-            'rank_display_mode' => $_POST['rank_display_mode'] ?? 'checkboxes',
-            'team_cert_mode'    => $_POST['team_cert_mode'] ?: null,
-        ];
-
-        if (empty($data['template_name'])) {
-            $this->error('Template name is required.');
-            $this->redirect('/certificates/template/edit?id=' . $templateId);
-        }
-
-        $this->templateModel->update($templateId, $data);
-
-        $this->success('Template updated successfully.');
-        $this->redirect('/certificates');
+        $this->templateCtrl->updateTemplate();
     }
 
-    /**
-     * Activate a template.
-     */
     public function activateTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $result = $this->templateService->activate($templateId, $this->user()['user_id']);
-
-        if (!$result['success']) {
-            $this->error($result['message']);
-        } else {
-            $this->success('Template activated and set as system default.');
-        }
-
-        $this->redirect('/certificates');
+        $this->templateCtrl->activateTemplate();
     }
 
-    /**
-     * Deactivate a template.
-     */
     public function deactivateTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $result = $this->templateService->deactivate($templateId, $this->user()['user_id']);
-        if ($result['success']) {
-            $this->success('Template deactivated.');
-        } else {
-            $this->error($result['message'] ?? 'Deactivation failed.');
-        }
-
-        $this->redirect('/certificates');
+        $this->templateCtrl->deactivateTemplate();
     }
 
-    /**
-     * Duplicate a template (clone without design config).
-     */
     public function duplicateTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $original = $this->templateModel->findById($templateId);
-        if (!$original) {
-            $this->error('Template not found.');
-            $this->redirect('/certificates');
-        }
-
-        $newId = $this->templateModel->create([
-            'template_name'     => $original['template_name'] . ' (Copy)',
-            'description'       => $original['description'],
-            'file_path'         => $original['file_path'],
-            'file_hash'         => $original['file_hash'],
-            'page_width_pt'     => $original['page_width_pt'],
-            'page_height_pt'    => $original['page_height_pt'],
-            'page_orientation'  => $original['page_orientation'],
-            'rank_display_mode' => $original['rank_display_mode'],
-            'team_cert_mode'    => $original['team_cert_mode'],
-            'is_active'         => 0,
-            'is_archived'       => 0,
-            'created_by'        => $this->user()['user_id'],
-        ]);
-
-        $this->success('Template duplicated. You can now edit and configure the copy.');
-        $this->redirect('/certificates/designer?template_id=' . $newId);
+        $this->templateCtrl->duplicateTemplate();
     }
 
-    /**
-     * Archive a template.
-     */
     public function archiveTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $result = $this->templateService->archiveTemplate($templateId, $this->user()['user_id']);
-
-        if ($result['success']) {
-            $this->success('Template archived.');
-        } else {
-            $this->error($result['message'] ?? 'Archive failed.');
-        }
-
-        $this->redirect('/certificates');
+        $this->templateCtrl->archiveTemplate();
     }
 
     public function unarchiveTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $result = $this->templateService->unarchiveTemplate($templateId, $this->user()['user_id']);
-
-        if ($result['success']) {
-            $this->success('Template unarchived.');
-        } else {
-            $this->error($result['message'] ?? 'Unarchive failed.');
-        }
-
-        $this->redirect('/certificates');
+        $this->templateCtrl->unarchiveTemplate();
     }
 
-    /**
-     * Delete a template (only if no certificates generated).
-     */
     public function deleteTemplate(): void
     {
-        $this->verifyCsrf();
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-
-        $result = $this->templateService->deleteTemplate($templateId, $this->user()['user_id']);
-
-        if ($result['success']) {
-            $this->success('Template deleted.');
-        } else {
-            $this->error($result['message']);
-        }
-
-        $this->redirect('/certificates');
+        $this->templateCtrl->deleteTemplate();
     }
 
-    // =========================================================================
-    // Preview
-    // =========================================================================
-
-    /**
-     * Preview selector — choose event and result for preview.
-     */
     public function preview(): void
     {
-        $templateId = (int) ($_GET['template_id'] ?? 0);
-        $template   = $templateId ? $this->templateModel->findById($templateId) : null;
-
-        // Get all locked events for selector
-        $db   = Database::getConnection();
-        $stmt = $db->prepare("
-            SELECT se.symposium_event_id, se.event_name, s.title AS symposium_title
-            FROM symposium_events se
-            JOIN symposiums s ON s.symposium_id = se.symposium_id
-            WHERE se.is_locked = 1
-            ORDER BY se.event_date DESC, se.event_name ASC
-        ");
-        $stmt->execute();
-        $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        $templates = $this->templateModel->getAll(true);
-
-        $this->render('certificate.preview', [
-            'page_title' => 'Preview Certificate',
-            'template'   => $template,
-            'templates'  => $templates,
-            'events'     => $events,
-        ]);
+        $this->templateCtrl->preview();
     }
 
-    /**
-     * Stream preview PDF using real result data.
-     */
     public function previewPdf(): void
     {
-        $templateId = (int) ($_GET['template_id'] ?? 0);
-        
-        if (isset($_GET['preview_only']) && $_GET['preview_only'] == '1') {
-            if ($templateId <= 0) {
-                http_response_code(400);
-                echo 'Missing template_id';
-                return;
-            }
-            $template = $this->templateModel->findById($templateId);
-            if (!$template) {
-                http_response_code(404);
-                echo 'Template not found';
-                return;
-            }
-            $templatePath = __DIR__ . '/../../' . ltrim($template['file_path'], '/');
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: inline; filename="template_bg.pdf"');
-            readfile($templatePath);
-            return;
-        }
-
-        $resultId = (int) ($_GET['result_id'] ?? 0);
-        $isPreview = isset($_GET['preview']) && $_GET['preview'] == '1';
-        $previewRank = isset($_GET['preview_rank']) ? (int)$_GET['preview_rank'] : 1;
-
-        if ($templateId <= 0) {
-            http_response_code(400);
-            echo 'Missing template_id';
-            return;
-        }
-
-        $template = $this->templateModel->findById($templateId);
-        if (!$template) {
-            http_response_code(404);
-            echo 'Template not found';
-            return;
-        }
-
-        $version = $this->templateModel->getActiveVersion($templateId);
-        if (!$version) {
-            http_response_code(422);
-            echo 'No design configuration found. Please open the designer first.';
-            return;
-        }
-
-        if ($resultId > 0) {
-            // Fetch the result with full joins
-            $db   = Database::getConnection();
-            $stmt = $db->prepare("
-                SELECT
-                    cr.*,
-                    a.application_type,
-                    s.full_name       AS student_name,
-                    s.gender,
-                    s.register_number,
-                    s.academic_year,
-                    d.short_name      AS department_name,
-                    se.event_name,
-                    se.event_date,
-                    v.venue_name AS venue_name,
-                    se.participation_type,
-                    sym.title         AS symposium_title
-                FROM competition_results cr
-                INNER JOIN applications a   ON a.application_id   = cr.application_id
-                LEFT JOIN students s       ON s.student_id        = a.student_id
-                LEFT JOIN departments d    ON d.department_id     = s.department_id
-                INNER JOIN symposium_events se ON se.symposium_event_id = cr.symposium_event_id
-                LEFT JOIN venues v ON v.venue_id = se.venue_id
-                INNER JOIN symposiums sym   ON sym.symposium_id    = se.symposium_id
-                WHERE cr.result_id = :result_id
-                  AND cr.published  = 1
-                LIMIT 1
-            ");
-            $stmt->execute(['result_id' => $resultId]);
-            $result = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if (!$result) {
-                http_response_code(404);
-                echo 'Published result not found.';
-                return;
-            }
-            // Format academic_year as Roman numeral
-            $result['academic_year'] = self::toRomanYear($result['academic_year'] ?? '');
-        } elseif ($isPreview) {
-            // Dummy data for designer preview — never touches DB records
-            $result = [
-                'student_name'    => 'Jane Doe',
-                'gender'          => 'Female',
-                'register_number' => 'REG-999999',
-                'academic_year'   => 'III',
-                'department_name' => 'B.Sc. CS',
-                'event_name'      => 'Tech Debugging',
-                'event_date'      => date('Y-m-d'),
-                'venue_name'      => 'Main Auditorium',
-                'symposium_title' => 'Nexus 2026',
-                'rank_position'   => $previewRank,
-                'result_status'   => $previewRank <= 3 ? 'Winner' : 'Participation',
-                
-            ];
-        } else {
-            http_response_code(400);
-            echo 'Invalid request: Must provide result_id or preview=1';
-            return;
-        }
-
-        $fieldConfig   = json_decode($version['field_config'] ?? '[]', true) ?: [];
-        $templatePath  = __DIR__ . '/../../' . ltrim($template['file_path'], '/');
-
-        // Use generator service
-        $generator = new \App\Services\CertificateGeneratorService();
-
-        try {
-            $pdfBytes = $generator->generateOne($result, $fieldConfig, $templatePath, $template);
-        } catch (\Throwable $e) {
-            error_log('[CertificateController::previewPdf] Template ' . $templateId . ': ' . $e->getMessage());
-            http_response_code(500);
-            echo 'Unable to generate certificate preview. Please verify the template configuration and try again.';
-            return;
-        }
-
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="preview_certificate.pdf"');
-        header('Content-Length: ' . strlen($pdfBytes));
-        header('Cache-Control: no-store, no-cache');
-        echo $pdfBytes;
+        $this->templateCtrl->previewPdf();
     }
 
-    /**
-     * Designer Preview — POST endpoint.
-     *
-     * Accepts the current, unsaved fieldsData from the designer and generates
-     * a temporary preview PDF entirely in memory.
-     *
-     * NEVER writes to the database. The result is streamed inline to the browser.
-     *
-     * Security chain:
-     *   1. AuthMiddleware::handle() — already enforced in __construct()
-     *   2. RoleMiddleware::requireRole() — already enforced in __construct()
-     *   3. CSRF from JSON body
-     *   4. Template existence + archived check
-     *   5. Tier 1 schema validation (via real production service method)
-     *   6. Server-side field property whitelisting
-     *
-     * POST /certificates/designer/preview
-     * Body: { _token, template_id, fields[], preview_rank, preview_gender }
-     *
-     * Success response:  Content-Type: application/pdf (inline)
-     * Failure response:  Content-Type: application/json with HTTP error code
-     */
     public function designerPreview(): void
     {
-        // Auth + Role already enforced in __construct(). No further auth needed.
-
-        $input = json_decode(file_get_contents('php://input'), true);
-
-        if (!is_array($input)) {
-            http_response_code(400);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Invalid JSON body.']);
-            return;
-        }
-
-        // 1. CSRF validation — reuses same Session::get('_token') mechanism as all POST handlers
-        $token        = $input['_token'] ?? '';
-        $sessionToken = Session::get('_token', '');
-        if (!$sessionToken || !hash_equals($sessionToken, $token)) {
-            http_response_code(403);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Security token mismatch.']);
-            return;
-        }
-
-        // 2. Validate template_id
-        $templateId = (int) ($input['template_id'] ?? 0);
-        if ($templateId <= 0) {
-            http_response_code(400);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Invalid template ID.']);
-            return;
-        }
-
-        // 3. Load template and check existence + archived status
-        //    (same pattern used by designer(), previewPdf(), and all other template endpoints)
-        $template = $this->templateModel->findById($templateId);
-        if (!$template || $template['is_archived']) {
-            http_response_code(404);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Template not found.']);
-            return;
-        }
-
-        // 4. Tier 1 schema-only validation via the real production service method
-        //    Allows partial/incomplete configurations — coordinator can preview mid-design.
-        $rawFields = $input['fields'] ?? [];
-        if (!is_array($rawFields)) {
-            http_response_code(400);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Fields must be an array.']);
-            return;
-        }
-
-        $validation = $this->templateService->validateFieldSchemaOnly(
-            $rawFields,
-            (float)($template['page_width_pt'] ?? 0),
-            (float)($template['page_height_pt'] ?? 0)
-        );
-        if (!$validation['success']) {
-            http_response_code(422);
-            header('Content-Type: application/json');
-            echo json_encode($validation);
-            return;
-        }
-
-        // 5. Server-side property whitelisting — authoritative filter for all submitted fields
-        //    Client-side removal of properties (e.g. delete o.id) is NOT a security boundary.
-        $fields = array_map([$this->templateService, 'whitelistField'], $rawFields);
-
-        // 6. Preview parameters
-        $previewRank   = max(0, min(4, (int)($input['preview_rank'] ?? 1)));
-        $previewGender = strtolower(trim($input['preview_gender'] ?? 'male'));
-        if (!in_array($previewGender, ['male', 'female'], true)) {
-            $previewGender = 'male';
-        }
-
-        // 7. Build canonical preview result DTO.
-        //    Keys confirmed from CertificateGeneratorService::resolveFieldValue() switch cases.
-        //    Note: gender stored as 'Female'/'Male' in DB (capital) — strtolower() handled in generator.
-        //    Note: academic_year passed as Roman numeral string (already converted upstream in other flows).
-        $previewResult = [
-            'student_name'    => 'Jane Doe',
-            'gender'          => ucfirst($previewGender),   // 'Male' or 'Female' — matches DB format
-            'register_number' => 'REG-999999',
-            'academic_year'   => 'III',
-            'department_name' => 'B.Sc. CS',     // short_name � matches d.short_name AS department_name in all DB queries
-            'event_name'      => 'Tech Debugging Challenge',
-            'event_date'      => date('Y-m-d'),
-            'symposium_title' => 'Nexus ' . date('Y'),
-            'rank_position'   => $previewRank,
-            'result_status'   => $previewRank <= 3 ? 'Winner' : 'Participation',
-            
-        ];
-
-        // 8. Resolve template PDF path using the canonical application pattern
-        //    Confirmed from CertificateController::previewPdf() line 521 and
-        //    CertificateBulkService::getAbsoluteTemplatePath() — identical pattern.
-        $templatePath = __DIR__ . '/../../' . ltrim($template['file_path'], '/');
-        if (!is_file($templatePath) || !is_readable($templatePath)) {
-            http_response_code(500);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Template PDF file could not be accessed.']);
-            return;
-        }
-
-        // 9. Generate preview using the SAME canonical generator as final/bulk generation.
-        //    Confirmed: CertificateBulkService and CertificateController::previewPdf() both
-        //    use plain new CertificateGeneratorService() — no DI configuration to replicate.
-        $generator = new CertificateGeneratorService();
-
-        try {
-            $pdfBytes = $generator->generateOne($previewResult, $fields, $templatePath, $template);
-        } catch (\Throwable $e) {
-            error_log('[CertificateController::designerPreview] Template ' . $templateId . ': ' . $e->getMessage());
-            http_response_code(500);
-            header('Content-Type: application/json');
-            echo json_encode(['success' => false, 'message' => 'Unable to generate certificate preview. Please verify the template configuration.']);
-            return;
-        }
-
-        // 10. Stream PDF inline — no DB write, no file storage.
-        header('Content-Type: application/pdf');
-        header('Content-Disposition: inline; filename="designer_preview.pdf"');
-        header('Content-Length: ' . strlen($pdfBytes));
-        header('Cache-Control: no-store, no-cache');
-        echo $pdfBytes;
+        $this->templateCtrl->designerPreview();
     }
 
-    // =========================================================================
-    // Certificate Generation
-    // =========================================================================
-
-    /**
-     * Generation form — select event / symposium.
-     */
-    public function generate(): void
-    {
-        $db   = Database::getConnection();
-
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-        $eventId     = (int) ($_GET['event_id'] ?? 0);
-
-        // If an event was passed but no symposium, look up the symposium
-        if ($eventId > 0 && $symposiumId === 0) {
-            $stmt = $db->prepare("SELECT symposium_id FROM symposium_events WHERE symposium_event_id = :id");
-            $stmt->execute(['id' => $eventId]);
-            $symposiumId = (int) $stmt->fetchColumn();
-        }
-
-        // Load all symposiums
-        $stmt = $db->prepare("
-            SELECT symposium_id, title AS symposium_name, symposium_code
-            FROM symposiums
-            ORDER BY title ASC
-        ");
-        $stmt->execute();
-        $symposiums = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-        // Load events for the selected symposium
-        $events = [];
-        if ($symposiumId > 0) {
-            $stmt = $db->prepare("
-                SELECT symposium_event_id, event_name
-                FROM symposium_events
-                WHERE symposium_id = :sid AND is_locked = 1
-                ORDER BY event_name ASC
-            ");
-            $stmt->execute(['sid' => $symposiumId]);
-            $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        }
-
-        $templates = $this->templateModel->getAll(true); // active only
-
-        // Winner / Participant template lists for per-type selectors
-        $winnerTemplates      = (new CertificateTemplateModel())->getByType('Winner');
-        $participantTemplates = (new CertificateTemplateModel())->getByType('Participant');
-
-        // Eligibility preflight — only when an event is selected
-        $winnerPreflight      = null;
-        $participantPreflight = null;
-        if ($eventId > 0) {
-            try {
-                $eligibilitySvc       = new CertificateEligibilityService();
-                $winnerPreflight      = $eligibilitySvc->getWinnerPreflight($eventId);
-                $participantPreflight = $eligibilitySvc->getParticipantPreflight($eventId);
-            } catch (\Throwable $e) {
-                error_log('[CertificateController::generate] preflight error: ' . $e->getMessage());
-            }
-        }
-
-        $templateId  = (int) ($_GET['template_id'] ?? 0);
-
-        $this->render('certificate.generate', [
-            'page_title'           => 'Generate Certificates',
-            'symposiums'           => $symposiums,
-            'events'               => $events,
-            'templates'            => $templates,
-            'winner_templates'     => $winnerTemplates,
-            'participant_templates' => $participantTemplates,
-            'winner_preflight'     => $winnerPreflight,
-            'participant_preflight' => $participantPreflight,
-            'selected_symposium'   => $symposiumId,
-            'selected_event'       => $eventId,
-            'selected_template'    => $templateId,
-        ]);
-    }
-
-    /**
-     * Execute certificate generation.
-     */
-    public function runGeneration(): void
-    {
-        $this->verifyCsrf();
-
-        $action            = $_POST['action'] ?? '';
-        $eventId           = (int) ($_POST['event_id'] ?? 0);
-        $allowRegenerate   = !empty($_POST['allow_regenerate']);
-        $explicitTemplateId = !empty($_POST['template_id']) ? (int) $_POST['template_id'] : null;
-
-        if ($eventId <= 0) {
-            $this->error('Please select an event.');
-            $this->redirect('/certificates/generate');
-        }
-
-        $user = $this->user();
-
-        try {
-            if ($action === 'generate_winners') {
-                $result = $this->bulkService->generateWinnersForEvent($eventId, $user['user_id'], $allowRegenerate, $explicitTemplateId);
-                Session::set('cert_generation_report', $result);
-                $this->redirect('/certificates/report');
-            } elseif ($action === 'generate_participants') {
-                $result = $this->bulkService->generateParticipantsForEvent($eventId, $user['user_id'], $allowRegenerate, $explicitTemplateId);
-                Session::set('cert_generation_report', $result);
-                $this->redirect('/certificates/report');
-            } elseif ($action === 'generate_both') {
-                $winnerTemplateId = !empty($_POST['winner_template_id']) ? (int) $_POST['winner_template_id'] : null;
-                $participantTemplateId = !empty($_POST['participant_template_id']) ? (int) $_POST['participant_template_id'] : null;
-                $allowRegenWinner = !empty($_POST['allow_regenerate_winner']);
-                $allowRegenParticipant = !empty($_POST['allow_regenerate_participant']);
-
-                $report = [
-                    'total_processed' => 0,
-                    'total_generated' => 0,
-                    'total_skipped'   => 0,
-                    'total_failed'    => 0,
-                    'details'         => []
-                ];
-                
-                $hasErrors = false;
-                $errorMsgs = [];
-
-                // Generate Winners
-                try {
-                    $winnerReport = $this->bulkService->generateWinnersForEvent($eventId, $user['user_id'], $allowRegenWinner, $winnerTemplateId);
-                    $report['total_processed'] += $winnerReport['total_processed'];
-                    $report['total_generated'] += $winnerReport['total_generated'];
-                    $report['total_skipped']   += $winnerReport['total_skipped'];
-                    $report['total_failed']    += $winnerReport['total_failed'];
-                    $report['details']         = array_merge($report['details'], $winnerReport['details']);
-                } catch (\RuntimeException $e) {
-                    $hasErrors = true;
-                    $errorMsgs[] = "Winner Error: " . $e->getMessage();
-                    $report['total_failed']++;
-                    $report['details'][] = ['identifier' => '-', 'recipient' => 'Event Validation (Winners)', 'status' => 'Failed', 'reason' => $e->getMessage()];
-                }
-
-                // Generate Participants
-                try {
-                    $participantReport = $this->bulkService->generateParticipantsForEvent($eventId, $user['user_id'], $allowRegenParticipant, $participantTemplateId);
-                    $report['total_processed'] += $participantReport['total_processed'];
-                    $report['total_generated'] += $participantReport['total_generated'];
-                    $report['total_skipped']   += $participantReport['total_skipped'];
-                    $report['total_failed']    += $participantReport['total_failed'];
-                    $report['details']         = array_merge($report['details'], $participantReport['details']);
-                } catch (\RuntimeException $e) {
-                    $hasErrors = true;
-                    $errorMsgs[] = "Participant Error: " . $e->getMessage();
-                    $report['total_failed']++;
-                    $report['details'][] = ['identifier' => '-', 'recipient' => 'Event Validation (Participants)', 'status' => 'Failed', 'reason' => $e->getMessage()];
-                }
-
-                if ($report['total_processed'] === 0 && $hasErrors) {
-                    // If NOTHING was processed, throw a combined exception to show as a flash message
-                    throw new \RuntimeException(implode(" | ", $errorMsgs));
-                }
-
-                Session::set('cert_generation_report', $report);
-                $this->redirect('/certificates/report');
-            } else {
-                // Legacy / fall-through: use existing full-event generation
-                $templateId           = $explicitTemplateId;
-                $includeParticipation = isset($_POST['include_participation']);
-
-                $report = $this->bulkService->generateForEvent(
-                    $eventId,
-                    $user['user_id'],
-                    $includeParticipation,
-                    $allowRegenerate,
-                    $templateId
-                );
-
-                // Store report in session for display
-                Session::set('cert_generation_report', $report);
-                $this->redirect('/certificates/report');
-            }
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/generate?event_id=' . $eventId);
-        }
-    }
-
-    /**
-     * Generation report page.
-     */
-    public function generationReport(): void
-    {
-        $report = Session::get('cert_generation_report', []);
-        Session::remove('cert_generation_report');
-
-        $this->render('certificate.report', [
-            'page_title' => 'Certificate Generation Report',
-            'report'     => $report,
-        ]);
-    }
-
-
-    // =========================================================================
-    // Winner / Participant ZIP Downloads
-    // =========================================================================
-
-    /**
-     * Download a ZIP of all Winner certificates for an event.
-     */
-    public function downloadWinnersZip(): void
-    {
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-
-        if ($eventId <= 0) {
-            $this->error('Invalid event ID.');
-            $this->redirect('/certificates/generated');
-        }
-
-        try {
-            $zipPath  = $this->packageService->buildWinnerZip($eventId, $this->user());
-            $filename = basename($zipPath);
-            $this->downloadService->streamZip($zipPath, $filename);
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/generated?event_id=' . $eventId);
-        }
-    }
-
-    /**
-     * Download a ZIP of all Participant certificates for an event.
-     */
-    public function downloadParticipantsZip(): void
-    {
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-
-        if ($eventId <= 0) {
-            $this->error('Invalid event ID.');
-            $this->redirect('/certificates/generated');
-        }
-
-        try {
-            $zipPath  = $this->packageService->buildParticipantZip($eventId, $this->user());
-            $filename = basename($zipPath);
-            $this->downloadService->streamZip($zipPath, $filename);
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/generated?event_id=' . $eventId);
-        }
-    }
-
-    // =========================================================================
-    // Event Template Assignment
-    // =========================================================================
-
-    /**
-     * Assign a template to a specific event and certificate type.
-     */
     public function setEventTemplate(): void
     {
-        $this->verifyCsrf();
-
-        $user       = $this->user();
-        $eventId    = (int) ($_POST['event_id'] ?? 0);
-        $templateId = (int) ($_POST['template_id'] ?? 0);
-        $certType   = in_array($_POST['certificate_type'] ?? '', ['Winner', 'Participant'], true)
-                        ? $_POST['certificate_type']
-                        : null;
-
-        if (!$certType) {
-            $this->error('Invalid certificate type. Must be Winner or Participant.');
-            $this->redirect('/certificates/generate' . ($eventId ? '?event_id=' . $eventId : ''));
-        }
-
-        (new CertificateTemplateModel())->setEventConfig($eventId, $templateId, $user['user_id'], $certType);
-
-        $this->success('Template assigned to event successfully.');
-        $this->redirect('/certificates/generate?event_id=' . $eventId);
+        $this->templateCtrl->setEventTemplate();
     }
 
     // =========================================================================
-    // AJAX — Eligibility Preflight
+    // Certificate Generation (Delegates to CertificateGenerationController)
     // =========================================================================
 
-    /**
-     * AJAX: Return winner + participant preflight data for an event.
-     * GET /certificates/ajax/preflight?event_id=X
-     */
+    public function generate(): void
+    {
+        $this->generationCtrl->generate();
+    }
+
+    public function runGeneration(): void
+    {
+        $this->generationCtrl->runGeneration();
+    }
+
+    public function generationReport(): void
+    {
+        $this->generationCtrl->generationReport();
+    }
+
     public function ajaxPreflight(): void
     {
-        header('Content-Type: application/json');
-
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-
-        if ($eventId <= 0) {
-            echo json_encode(['error' => 'No event selected.']);
-            exit;
-        }
-
-        $svc = new CertificateEligibilityService();
-        echo json_encode([
-            'winner'      => $svc->getWinnerPreflight($eventId),
-            'participant' => $svc->getParticipantPreflight($eventId),
-        ]);
-        exit;
+        $this->generationCtrl->ajaxPreflight();
     }
 
-    // =========================================================================
-    // Generated Certificates List
-    // =========================================================================
-
-    /**
-     * List all generated certificates with filters.
-     */
-        public function generated(): void
+    public function generated(): void
     {
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-        $eventReport = null;
-        $symposiumReport = null;
-
-        // Certificate type filter (Winner | Participant | All)
-        $certType = in_array($_GET['cert_type'] ?? '', ['Winner', 'Participant', 'All'])
-                    ? $_GET['cert_type']
-                    : 'All';
-
-        $db = Database::getConnection();
-
-        if ($eventId > 0) {
-            $certs = $this->certModel->getByEvent($eventId, $certType !== 'All' ? $certType : null);
-            try {
-                $eventReport = $this->packageService->getEventCompleteness($eventId);
-            } catch (\Throwable $e) {
-                $eventReport = null;
-            }
-        } elseif ($symposiumId > 0) {
-            // Fetch all certs for symposium
-            $stmt = $db->prepare("
-                SELECT
-                    gc.*,
-                    se.event_name,
-                    sym.title AS symposium_title
-                FROM generated_certificates gc
-                INNER JOIN symposium_events se ON se.symposium_event_id = gc.symposium_event_id
-                INNER JOIN symposiums sym       ON sym.symposium_id      = se.symposium_id
-                WHERE sym.symposium_id = :sym_id AND gc.generation_status != 'Failed'
-                ORDER BY se.event_date DESC, gc.generated_at DESC
-            ");
-            $stmt->execute(['sym_id' => $symposiumId]);
-            $certs = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-            
-            // Check if symposium is completed
-            $stmt = $db->prepare("SELECT status FROM symposiums WHERE symposium_id = :sym_id");
-            $stmt->execute(['sym_id' => $symposiumId]);
-            $symStatus = $stmt->fetchColumn();
-            
-            if ($symStatus === \App\Services\SymposiumService::STATUS_COMPLETED) {
-                $symposiumReport = ['missing' => 0];
-            } else {
-                $symposiumReport = ['missing' => 1];
-            }
-        } else {
-            // Get all recent certificates
-            $stmt = $db->prepare("
-                SELECT
-                    gc.*,
-                    se.event_name,
-                    sym.title AS symposium_title
-                FROM generated_certificates gc
-                INNER JOIN symposium_events se ON se.symposium_event_id = gc.symposium_event_id
-                INNER JOIN symposiums sym       ON sym.symposium_id      = se.symposium_id
-                WHERE gc.generation_status != 'Failed'
-                ORDER BY gc.generated_at DESC
-                LIMIT 500
-            ");
-            $stmt->execute();
-            $certs = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-        }
-
-        // Event selector
-        $stmt = $db->prepare("
-            SELECT se.symposium_event_id, se.event_name, sym.title AS symposium_title
-            FROM symposium_events se
-            INNER JOIN symposiums sym ON sym.symposium_id = se.symposium_id
-            WHERE se.is_locked = 1
-            ORDER BY se.event_date DESC, se.event_name ASC
-        ");
-        $stmt->execute();
-        $events = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-        
-        // Symposium selector
-        $stmt = $db->prepare("
-            SELECT symposium_id, title
-            FROM symposiums
-            ORDER BY created_at DESC
-        ");
-        $stmt->execute();
-        $symposiums = $stmt->fetchAll(\PDO::FETCH_ASSOC) ?: [];
-
-        $this->render('certificate.generated', [
-            'page_title'         => 'Generated Certificates',
-            'certs'              => $certs,
-            'events'             => $events,
-            'symposiums'         => $symposiums,
-            'selected_event'     => $eventId,
-            'selected_symposium' => $symposiumId,
-            'event_report'       => $eventReport,
-            'symposium_report'   => $symposiumReport,
-            'selected_cert_type' => $certType,
-            'rank_service'       => new CertificateRankService(),
-        ]);
+        $this->generationCtrl->generated();
     }
 
-
-    // =========================================================================
-    // Download
-    // =========================================================================
-
-    /**
-     * Download a single certificate PDF (attachment).
-     */
-    public function download(): void
-    {
-        $certId = (int) ($_GET['id'] ?? 0);
-
-        if ($certId <= 0) {
-            $this->error('Invalid certificate ID.');
-            $this->redirect('/certificates/generated');
-        }
-
-        $this->downloadService->streamSingle($certId, $this->user(), false);
-    }
-
-    /**
-     * View a single certificate PDF (inline).
-     */
-    public function view(): void
-    {
-        $certId = (int) ($_GET['id'] ?? 0);
-
-        if ($certId <= 0) {
-            $this->error('Invalid certificate ID.');
-            $this->redirect('/certificates/generated');
-        }
-
-        $this->downloadService->streamSingle($certId, $this->user(), true);
-    }
-
-    /**
-     * Bulk ZIP download.
-     */
-    public function downloadZip(): void
-    {
-        $rawIds = $_GET['ids'] ?? '';
-        $certIds = array_filter(array_map('intval', explode(',', $rawIds)));
-
-        if (empty($certIds)) {
-            $this->error('No certificates selected.');
-            $this->redirect('/certificates/generated');
-        }
-
-        try {
-            $zipPath  = $this->downloadService->buildZip($certIds, $this->user());
-            $filename = 'NexusCore_Certificates_' . date('Ymd_His') . '.zip';
-            $this->downloadService->streamZip($zipPath, $filename);
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/generated');
-        }
-    }
-
-    /**
-     * Event ZIP download.
-     */
-    public function downloadEventZip(): void
-    {
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-
-        if ($eventId <= 0) {
-            $this->error('Invalid event ID.');
-            $this->redirect('/certificates/generated');
-        }
-
-        try {
-            // Verify completeness
-            $comp = $this->packageService->getEventCompleteness($eventId);
-            if ($comp['missing'] > 0) {
-                throw new \RuntimeException('Certificate generation is incomplete. ' . $comp['missing'] . ' certificates are missing.');
-            }
-
-            $zipPath  = $this->packageService->buildEventZip($eventId, $this->user());
-            $filename = basename($zipPath); // Safe name generated in service
-            $this->downloadService->streamZip($zipPath, $filename);
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/generated?event_id=' . $eventId);
-        }
-    }
-
-    /**
-     * Symposium Package download.
-     */
-    public function downloadSymposiumPackage(): void
-    {
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-
-        if ($symposiumId <= 0) {
-            $this->error('Invalid symposium ID.');
-            $this->redirect('/symposiums');
-        }
-
-        try {
-            $zipPath  = $this->packageService->buildSymposiumPackage($symposiumId, $this->user());
-            $filename = basename($zipPath); // Safe name generated in service
-            $this->downloadService->streamZip($zipPath, $filename);
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/symposium-batch?symposium_id=' . $symposiumId);
-        }
-    }
-
-    /**
-     * Symposium Package PDF download.
-     */
-    public function downloadSymposiumPdf(): void
-    {
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-
-        if ($symposiumId <= 0) {
-            $this->error('Invalid symposium ID.');
-            $this->redirect('/symposiums');
-        }
-
-        try {
-            $pdfPath  = $this->packageService->buildSymposiumMergedPdf($symposiumId, $this->user());
-            $filename = basename($pdfPath); // Safe name generated in service
-            
-            // Stream the PDF instead of ZIP
-            if (!file_exists($pdfPath)) {
-                throw new \RuntimeException('PDF file could not be generated.');
-            }
-            
-            header('Content-Type: application/pdf');
-            header('Content-Disposition: attachment; filename="' . $filename . '"');
-            header('Content-Length: ' . filesize($pdfPath));
-            readfile($pdfPath);
-            exit;
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/symposiums/show?id=' . $symposiumId);
-        }
-    }
-
-    // =========================================================================
-    // AJAX Endpoints
-    // =========================================================================
-
-    /**
-     * AJAX: Get all locked events for a symposium.
-     * GET /certificates/ajax/events?symposium_id=X
-     */
     public function ajaxGetEvents(): void
     {
-        header('Content-Type: application/json');
-
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-
-        if ($symposiumId <= 0) {
-            echo json_encode([]);
-            return;
-        }
-
-        $db   = Database::getConnection();
-        $stmt = $db->prepare("
-            SELECT
-                se.symposium_event_id,
-                se.event_name,
-                se.event_code,
-                se.participation_type,
-                se.event_date,
-                COUNT(cr.result_id) AS result_count
-            FROM symposium_events se
-            LEFT JOIN competition_results cr
-                   ON cr.symposium_event_id = se.symposium_event_id
-                  AND cr.published = 1
-            WHERE se.symposium_id = :symposium_id
-              AND se.is_locked    = 1
-            GROUP BY se.symposium_event_id
-            ORDER BY se.event_name ASC
-        ");
-        $stmt->execute(['symposium_id' => $symposiumId]);
-        $events = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-        echo json_encode(['events' => $events]);
+        $this->generationCtrl->ajaxGetEvents();
     }
 
-    /**
-     * AJAX: Get published results for an event (for preview selector).
-     * GET /certificates/ajax/results?event_id=X
-     */
     public function ajaxGetResults(): void
     {
-        header('Content-Type: application/json');
-
-        $eventId = (int) ($_GET['event_id'] ?? 0);
-
-        if ($eventId <= 0) {
-            echo json_encode([]);
-            return;
-        }
-
-        $db   = Database::getConnection();
-        $stmt = $db->prepare("
-            SELECT
-                cr.result_id,
-                cr.rank_position,
-                cr.result_status,
-                s.full_name AS student_name,
-                s.full_name AS name_display,
-                s.register_number
-            FROM competition_results cr
-            INNER JOIN applications a ON a.application_id  = cr.application_id
-            INNER JOIN students s     ON s.student_id      = a.student_id
-            WHERE cr.symposium_event_id = :event_id
-              AND cr.published           = 1
-            ORDER BY cr.rank_position ASC, s.full_name ASC
-        ");
-        $stmt->execute(['event_id' => $eventId]);
-        $results = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-        echo json_encode(['results' => $results]);
+        $this->generationCtrl->ajaxGetResults();
     }
-
-    // =========================================================================
-    // Internal Helpers
-    // =========================================================================
-
-    /**
-     * Verify CSRF token on POST requests.
-     */
-    private function verifyCsrf(): void
-    {
-        $token         = $_POST['_token'] ?? '';
-        $sessionToken  = Session::get('_token', '');
-
-        if (!hash_equals($sessionToken, $token)) {
-            $this->error('Security token mismatch. Please try again.');
-            $this->redirect('/certificates');
-        }
-    }
-
-    /**
-     * Convert a numeric academic year to a Roman numeral string.
-     * e.g. 1 → "I", 2 → "II", 3 → "III", 4 → "IV"
-     * Non-numeric / unknown values are returned unchanged.
-     */
-    private static function toRomanYear(int|string $year): string
-    {
-        $trimmed = trim((string)$year);
-        $map = [
-            '1' => 'I',  '2' => 'II',  '3' => 'III',  '4' => 'IV',
-            'I' => 'I',  'II' => 'II', 'III' => 'III', 'IV' => 'IV',
-        ];
-        return $map[$trimmed] ?? $trimmed;
-    }
-
-    // =========================================================================
-    // Symposium Batch Generation
-    // =========================================================================
 
     public function symposiumBatch(): void
     {
-        $db = Database::getConnection();
-        
-        $symposiumId = (int) ($_GET['symposium_id'] ?? 0);
-
-        // Load all symposiums
-        $stmt = $db->query("
-            SELECT symposium_id, title AS symposium_name, symposium_code
-            FROM symposiums
-            ORDER BY created_at DESC
-        ");
-        $symposiums = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-        $eventsStats = [];
-        $symposiumInfo = null;
-
-        if ($symposiumId > 0) {
-            // Get symposium info
-            $stmt = $db->prepare("SELECT title AS symposium_name FROM symposiums WHERE symposium_id = :id");
-            $stmt->execute(['id' => $symposiumId]);
-            $symposiumInfo = $stmt->fetch(\PDO::FETCH_ASSOC);
-
-            // Load all events for this symposium
-            $stmt = $db->prepare("
-                SELECT symposium_event_id, event_name, is_locked
-                FROM symposium_events
-                WHERE symposium_id = :sid
-                ORDER BY event_name ASC
-            ");
-            $stmt->execute(['sid' => $symposiumId]);
-            $events = $stmt->fetchAll(\PDO::FETCH_ASSOC);
-
-            $eligibilityService = new \App\Services\CertificateEligibilityService();
-
-            foreach ($events as $event) {
-                $eid = (int)$event['symposium_event_id'];
-                
-                if ($event['is_locked']) {
-                    $winnerPreflight = $eligibilityService->getWinnerPreflight($eid);
-                    $participantPreflight = $eligibilityService->getParticipantPreflight($eid);
-                } else {
-                    $winnerPreflight = null;
-                    $participantPreflight = null;
-                }
-
-                $eventsStats[] = [
-                    'event_id'             => $eid,
-                    'event_name'           => $event['event_name'],
-                    'is_locked'            => (bool)$event['is_locked'],
-                    'winner_preflight'     => $winnerPreflight,
-                    'participant_preflight'=> $participantPreflight,
-                ];
-            }
-        }
-
-        $winnerTemplates      = (new \App\Models\CertificateTemplateModel())->getByType('Winner');
-        $participantTemplates = (new \App\Models\CertificateTemplateModel())->getByType('Participant');
-
-        $this->render('certificate.symposium_batch', [
-            'page_title'           => 'Symposium Batch Generation',
-            'symposiums'           => $symposiums,
-            'selected_symposium'   => $symposiumId,
-            'symposium_info'       => $symposiumInfo,
-            'events_stats'         => $eventsStats,
-            'winner_templates'     => $winnerTemplates,
-            'participant_templates'=> $participantTemplates,
-            'csrf_token'           => Session::get('_token', ''),
-            'flash_message'        => Session::getFlash('certificate_flash'),
-        ]);
+        $this->generationCtrl->symposiumBatch();
     }
 
     public function runSymposiumBatch(): void
     {
-        $this->verifyCsrf();
+        $this->generationCtrl->runSymposiumBatch();
+    }
 
-        $symposiumId = (int) ($_POST['symposium_id'] ?? 0);
-        $allowRegenerate = !empty($_POST['allow_regenerate']);
-        $winnerTemplateId = !empty($_POST['winner_template_id']) ? (int) $_POST['winner_template_id'] : null;
-        $participantTemplateId = !empty($_POST['participant_template_id']) ? (int) $_POST['participant_template_id'] : null;
+    // =========================================================================
+    // Certificate Downloads (Delegates to CertificateDownloadController)
+    // =========================================================================
 
-        if ($symposiumId <= 0) {
-            $this->error('Please select a symposium.');
-            $this->redirect('/certificates/symposium-batch');
+    public function download(): void
+    {
+        $this->downloadCtrl->download();
+    }
+
+    public function view(): void
+    {
+        $this->downloadCtrl->view();
+    }
+
+    public function downloadZip(): void
+    {
+        $this->downloadCtrl->downloadZip();
+    }
+
+    public function downloadEventZip(): void
+    {
+        $this->downloadCtrl->downloadEventZip();
+    }
+
+    public function downloadWinnersZip(): void
+    {
+        $this->downloadCtrl->downloadWinnersZip();
+    }
+
+    public function downloadParticipantsZip(): void
+    {
+        $this->downloadCtrl->downloadParticipantsZip();
+    }
+
+    public function downloadSymposiumPackage(): void
+    {
+        $this->downloadCtrl->downloadSymposiumPackage();
+    }
+
+    public function downloadSymposiumPdf(): void
+    {
+        $this->downloadCtrl->downloadSymposiumPdf();
+    }
+
+    // =========================================================================
+    // Fallback Magic Method for Dynamic / Extension Invocations
+    // =========================================================================
+
+    public function __call(string $name, array $arguments): mixed
+    {
+        if (method_exists($this->templateCtrl, $name)) {
+            return $this->templateCtrl->$name(...$arguments);
         }
 
-        $user = $this->user();
-
-        try {
-            // Generate for the entire symposium (includes participants by default)
-            $report = $this->bulkService->generateForSymposium($symposiumId, $user['user_id'], true, $allowRegenerate, $winnerTemplateId, $participantTemplateId);
-            Session::set('cert_generation_report', $report);
-            $this->redirect('/certificates/report');
-        } catch (\RuntimeException $e) {
-            $this->error($e->getMessage());
-            $this->redirect('/certificates/symposium-batch?symposium_id=' . $symposiumId);
+        if (method_exists($this->generationCtrl, $name)) {
+            return $this->generationCtrl->$name(...$arguments);
         }
+
+        if (method_exists($this->downloadCtrl, $name)) {
+            return $this->downloadCtrl->$name(...$arguments);
+        }
+
+        throw new \BadMethodCallException("Method {$name} does not exist on any certificate controller.");
     }
 }

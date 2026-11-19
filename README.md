@@ -75,3 +75,7 @@ Access the application at `http://localhost`.
 * **Document Root**: Ensure your production web server (Apache/Nginx) is configured to serve the `public/` directory. The root of the project should NOT be accessible to the public.
 * **Environment**: Ensure `.env` is properly configured for production (`APP_ENV=production`, `APP_DEBUG=false`) and securely stored.
 * **Permissions**: Ensure the web server has write access to the `storage/` and `public/uploads/` directories.
+
+## Third-Party Licenses & Attribution
+
+NexusCore incorporates open-source software and components under permissive and weak copyleft licenses (MIT, Apache-2.0, BSD-3-Clause, ISC, and LGPL). For full attribution details, copyright holders, and license terms for all dependencies, please refer to [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [NOTICE](NOTICE).

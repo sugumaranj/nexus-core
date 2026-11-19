@@ -39,14 +39,15 @@ final class ApplicationModel
         $status = $data['application_status'] ?? 'Approved';
         $approvalStatus = $data['approval_status'] ?? 'Approved';
         $approvedAt = ($status === 'Approved') ? date('Y-m-d H:i:s') : null;
+        $paymentStatus = $data['payment_status'] ?? 'Not Required';
 
         $sql = "
             INSERT INTO applications
                 (application_no, competition_id, symposium_event_id, student_id, application_type,
-                 application_status, approval_status, approved_at)
+                 application_status, approval_status, approved_at, payment_status)
             VALUES
                 (:application_no, :competition_id, :symposium_event_id, :student_id, :application_type,
-                 :application_status, :approval_status, :approved_at)
+                 :application_status, :approval_status, :approved_at, :payment_status)
         ";
 
         $stmt = $this->db->prepare($sql);
@@ -60,6 +61,7 @@ final class ApplicationModel
             'application_status' => $status,
             'approval_status'    => $approvalStatus,
             'approved_at'        => $approvedAt,
+            'payment_status'     => $paymentStatus,
         ]);
 
         if (!$ok) {
@@ -125,11 +127,16 @@ final class ApplicationModel
                 sy.status         AS symposium_status,
                 sy.registration_start,
                 sy.registration_end,
-                u.full_name       AS approved_by_name
+                u.full_name       AS approved_by_name,
+                a.payment_status,
+                s.student_type,
+                COALESCE(s.external_department, d.short_name, d.department_name) AS department_name,
+                COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name
             FROM applications a
             INNER JOIN students s    ON s.student_id    = a.student_id
             LEFT  JOIN teams t       ON t.application_id = a.application_id
-            INNER JOIN departments d ON d.department_id = s.department_id
+            LEFT  JOIN departments d ON d.department_id = s.department_id
+            LEFT  JOIN colleges col   ON col.college_id   = s.college_id
             LEFT  JOIN competitions c ON c.competition_id = a.competition_id
             LEFT  JOIN symposiums sy  ON sy.symposium_id  = c.symposium_id OR sy.symposium_id = a.symposium_event_id
             LEFT  JOIN users u        ON u.user_id        = a.approved_by
@@ -154,7 +161,7 @@ final class ApplicationModel
     public function findByStudentAndCompetition(int $studentId, int $competitionId): array|false
     {
         $sql = "
-            SELECT *
+            SELECT application_id, application_no, competition_id, symposium_event_id, student_id, application_type, application_status, approval_status, payment_status, approved_by, approved_at, remarks, applied_at
             FROM applications
             WHERE student_id     = :student_id
               AND competition_id = :competition_id
@@ -180,7 +187,7 @@ final class ApplicationModel
     public function findByStudentAndSymposiumEvent(int $studentId, int $symposiumEventId): array|false
     {
         $sql = "
-            SELECT *
+            SELECT application_id, application_no, competition_id, symposium_event_id, student_id, application_type, application_status, approval_status, payment_status, approved_by, approved_at, remarks, applied_at
             FROM applications
             WHERE student_id         = :student_id
               AND symposium_event_id = :symposium_event_id
@@ -369,7 +376,10 @@ final class ApplicationModel
                 s.full_name         AS creator_name,
                 s.register_number   AS creator_register_number,
                 s.gender            AS student_gender,
-                d.department_name   AS student_department,
+                COALESCE(s.external_department, d.short_name, d.department_name) AS student_department,
+                s.student_type,
+                COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name,
+                a.payment_status,
                 c.title             AS competition_title,
                 c.competition_code,
                 c.event_date,
@@ -379,7 +389,8 @@ final class ApplicationModel
             FROM applications a
             INNER JOIN students    s  ON s.student_id    = a.student_id
             LEFT  JOIN teams       t  ON t.application_id = a.application_id
-            INNER JOIN departments d  ON d.department_id = s.department_id
+            LEFT  JOIN departments d  ON d.department_id = s.department_id
+            LEFT  JOIN colleges    col ON col.college_id  = s.college_id
             LEFT  JOIN competitions c ON c.competition_id = a.competition_id
             LEFT  JOIN symposium_events se ON se.symposium_event_id = a.symposium_event_id
             LEFT  JOIN symposiums   sy ON sy.symposium_id = c.symposium_id OR sy.symposium_id = se.symposium_id
@@ -454,6 +465,10 @@ final class ApplicationModel
         $conditions = ['a.competition_id = :competition_id'];
         $params     = ['competition_id' => $competitionId];
 
+        if (!empty($filters['college_id']) && $filters['college_id'] !== 'All') {
+            $conditions[] = 's.college_id = :college_id';
+            $params['college_id'] = (int) $filters['college_id'];
+        }
         if (!empty($filters['department_id'])) {
             $conditions[] = 's.department_id = :department_id';
             $params['department_id'] = (int) $filters['department_id'];
@@ -528,12 +543,15 @@ final class ApplicationModel
                 s.register_number AS member_register_number,
                 s.academic_year   AS member_year,
                 s.gender          AS member_gender,
-                d.department_name AS member_department
+                COALESCE(s.external_department, d.short_name, d.department_name) AS member_department,
+                COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS member_college,
+                s.student_type
             FROM applications a
             INNER JOIN teams        t  ON t.application_id = a.application_id
             INNER JOIN team_members tm ON tm.team_id       = t.team_id
             INNER JOIN students     s  ON s.student_id     = tm.student_id
-            INNER JOIN departments  d  ON d.department_id  = s.department_id
+            LEFT  JOIN departments  d  ON d.department_id  = s.department_id
+            LEFT  JOIN colleges     col ON col.college_id  = s.college_id
             WHERE a.competition_id = :competition_id
             ORDER BY
                 t.application_id ASC,
@@ -1081,6 +1099,10 @@ final class ApplicationModel
         // not just per-application (critical for team events).
         $outerConds = [];
 
+        if (!empty($filters['college_id']) && $filters['college_id'] !== 'All') {
+            $outerConds[] = 'college_id = :college_id';
+            $params['college_id'] = (int) $filters['college_id'];
+        }
         if (!empty($filters['department_id'])) {
             $outerConds[] = 'participant_department_id = :department_id';
             $params['department_id'] = (int) $filters['department_id'];
@@ -1123,14 +1145,19 @@ final class ApplicationModel
                     s.phone            AS student_phone,
                     s.academic_year    AS student_year,
                     s.semester         AS student_semester,
-                    d.department_name  AS student_department,
+                    COALESCE(s.external_department, d.short_name, d.department_name) AS student_department,
                     d.department_id    AS participant_department_id,
+                    COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name,
+                    s.college_id,
+                    s.student_type,
+                    a.payment_status,
                     NULL               AS team_id,
                     a.student_id       AS creator_student_id,
                     1                  AS is_team_leader
                 FROM applications a
                 INNER JOIN students    s ON s.student_id    = a.student_id
-                INNER JOIN departments d ON d.department_id = s.department_id
+                LEFT  JOIN departments d ON d.department_id = s.department_id
+                LEFT  JOIN colleges    col ON col.college_id = s.college_id
                 WHERE a.symposium_event_id = :id
                   AND a.application_type   = 'Individual'
 
@@ -1150,8 +1177,12 @@ final class ApplicationModel
                     s.phone            AS student_phone,
                     s.academic_year    AS student_year,
                     s.semester         AS student_semester,
-                    d.department_name  AS student_department,
+                    COALESCE(s.external_department, d.short_name, d.department_name) AS student_department,
                     d.department_id    AS participant_department_id,
+                    COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS college_name,
+                    s.college_id,
+                    s.student_type,
+                    a.payment_status,
                     t.team_id,
                     a.student_id       AS creator_student_id,
                     IF(tm.student_id = a.student_id, 1, 0) AS is_team_leader
@@ -1159,7 +1190,8 @@ final class ApplicationModel
                 INNER JOIN teams        t  ON t.application_id  = a.application_id
                 INNER JOIN team_members tm ON tm.team_id        = t.team_id
                 INNER JOIN students     s  ON s.student_id      = tm.student_id
-                INNER JOIN departments  d  ON d.department_id   = s.department_id
+                LEFT  JOIN departments  d  ON d.department_id   = s.department_id
+                LEFT  JOIN colleges     col ON col.college_id   = s.college_id
                 WHERE a.symposium_event_id = :id2
                   AND a.application_type   = 'Team'
             ) AS all_participants
@@ -1189,12 +1221,15 @@ final class ApplicationModel
                 s.register_number AS member_register_number,
                 s.academic_year   AS member_year,
                 s.gender          AS member_gender,
-                d.department_name AS member_department
+                COALESCE(s.external_department, d.short_name, d.department_name) AS member_department,
+                COALESCE(col.college_name, s.college_name, 'Government Arts and Science College, Veerapandi, Theni') AS member_college,
+                s.student_type
             FROM applications a
             INNER JOIN teams        t  ON t.application_id = a.application_id
             INNER JOIN team_members tm ON tm.team_id       = t.team_id
             INNER JOIN students     s  ON s.student_id     = tm.student_id
-            INNER JOIN departments  d  ON d.department_id  = s.department_id
+            LEFT  JOIN departments  d  ON d.department_id  = s.department_id
+            LEFT  JOIN colleges     col ON col.college_id  = s.college_id
             WHERE a.symposium_event_id = :id
             ORDER BY
                 t.application_id ASC,
@@ -1252,6 +1287,10 @@ final class ApplicationModel
         $conditions = ['se.symposium_id = :symposium_id'];
         $params = ['symposium_id' => $symposiumId];
 
+        if (!empty($filters['college_id']) && $filters['college_id'] !== 'All') {
+            $conditions[] = 's.college_id = :college_id';
+            $params['college_id'] = (int) $filters['college_id'];
+        }
         if (!empty($filters['department_id'])) {
             $conditions[] = 's.department_id = :department_id';
             $params['department_id'] = (int) $filters['department_id'];
